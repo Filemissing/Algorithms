@@ -303,6 +303,7 @@ MonoBehaviour:
   seed: 0
   size: {x: 100, y: 100}
   maxRoomSize: {x: 10, y: 10}
+  generatedRooms: []
   finalRooms: []
 --- !u!1 &410087039
 GameObject:
