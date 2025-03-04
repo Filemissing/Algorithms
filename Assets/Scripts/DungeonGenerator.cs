@@ -13,6 +13,7 @@ public class DungeonGenerator : MonoBehaviour
     public Vector2Int size = new Vector2Int(100, 50);
     public Vector2Int maxRoomSize = new Vector2Int(10, 10);
     public List<RectInt> generatedRooms = new List<RectInt>();
+    public float removePercentage = 75;
     public List<RectInt> finalRooms = new List<RectInt>();
 
     List<RectInt> roomsToCheck = new List<RectInt>();
@@ -99,9 +100,11 @@ public class DungeonGenerator : MonoBehaviour
         RectInt lastRemovedRoom = default;
 
         again:
-        while (MapIsValid(remainingRooms))
+        while (MapIsValid(remainingRooms) && remainingRooms.Count > generatedRooms.Count * (1 - (removePercentage / 100)) && roomsToCheck.Count > 0)
         {
             int index = Mathf.RoundToInt(Random.value * (roomsToCheck.Count - 1));
+
+            Debug.Log(index);
 
             lastRemovedRoom = roomsToCheck[index];
 
@@ -109,7 +112,7 @@ public class DungeonGenerator : MonoBehaviour
             roomsToCheck.RemoveAt(index);
         }
 
-        if (lastRemovedRoom != default)
+        if (!MapIsValid(remainingRooms))
         {
             remainingRooms.Add(lastRemovedRoom);
             goto again;
@@ -120,6 +123,8 @@ public class DungeonGenerator : MonoBehaviour
 
     bool MapIsValid(List<RectInt> remainingRooms)
     {
+        // TO DO: Increase efficiency
+
         List<RectInt> roomsToCheck = new List<RectInt>(remainingRooms);
         HashSet<RectInt> connectedRooms = new HashSet<RectInt>() { remainingRooms[0] };
 
