@@ -1,74 +1,102 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Mathematics;
 using NaughtyAttributes;
+using Random = Unity.Mathematics.Random;
+using System.Collections;
 using System;
-using Random = UnityEngine.Random;
-using System.Linq;
-using System.Net;
 
 public class DungeonGenerator : MonoBehaviour
 {
+    [Header("General")]
     public int seed;
+    Random rng;
 
     public Vector2Int size = new Vector2Int(100, 50);
     public Vector2Int maxRoomSize = new Vector2Int(10, 10);
+
+    [Header("Generation")]
     public List<RectInt> generatedRooms = new List<RectInt>();
+    bool generationFinished = false;
+
+    [Header("Removal")]
     public float removePercentage = 75;
     public List<RectInt> finalRooms = new List<RectInt>();
 
+    [HorizontalLine]
+    [Header("Animation")]
+    public float waitTime;
+    public float waitAfterGeneration;
+
     List<RectInt> roomsToCheck = new List<RectInt>();
 
-    private void Start()
+    IEnumerator Start()
     {
         Initilize();
 
-        CreateRooms();
+        StartCoroutine(CreateRooms());
+
+        yield return new WaitUntil(() => generationFinished);
 
         RemoveRooms();
     }
 
     void Initilize()
     {
-        Random.InitState(seed);
+        rng = new Random(Convert.ToUInt32(seed));
 
         RectInt startRoom = new RectInt(0, 0, size.x, size.y);
         roomsToCheck.Add(startRoom);
     }
 
-    void CreateRooms()
+    IEnumerator CreateRooms()
     {
         while (roomsToCheck.Count > 0)
         {
             List<RectInt> newRooms = new List<RectInt>();
             foreach (RectInt room in roomsToCheck)
             {
+                RectInt[] createdRooms = new RectInt[0];
                 if (room.width > maxRoomSize.x && room.height > maxRoomSize.y) // both dimensions are too big - choose a random one
                 {
-                    bool splitHorizontal = Mathf.Round(Random.value) == 1;
-                    if (splitHorizontal) newRooms.AddRange(SplitHorizontally(room));
-                    else newRooms.AddRange(SplitVertically(room));
+                    bool splitHorizontal = Mathf.Round(rng.NextFloat()) == 1;
+
+                    if (splitHorizontal) createdRooms = SplitHorizontally(room);
+                    else createdRooms = SplitVertically(room);
                 }
                 else if (room.width > maxRoomSize.x) // width is too big
                 {
-                    newRooms.AddRange(SplitVertically(room));
+                    createdRooms = SplitVertically(room);
                 }
                 else if (room.height > maxRoomSize.y) // height is too big
                 {
-                    newRooms.AddRange(SplitHorizontally(room));
+                    createdRooms = SplitHorizontally(room);
                 }
-                else // room is finished - move to finalRooms
+                else // room is finished - move to generatedRooms
                 {
                     generatedRooms.Add(room);
                 }
+
+                newRooms.AddRange(createdRooms);
+
+                foreach (RectInt room2 in roomsToCheck) { AlgorithmsUtils.DebugRectInt(room2, Color.yellow, waitTime); }
+
+                foreach (RectInt createdRoom in newRooms) { AlgorithmsUtils.DebugRectInt(createdRoom, Color.cyan, waitTime); }
+
+                yield return new WaitForSeconds(waitTime);
             }
             roomsToCheck = newRooms;
         }
+
+        yield return new WaitForSeconds(waitAfterGeneration);
+
+        generationFinished = true;
     }
     RectInt[] SplitVertically(RectInt room)
     {
         RectInt[] newRooms = new RectInt[2];
 
-        float splitRatio = 2 + (Random.value - .5f) / 2;
+        float splitRatio = 2 + (rng.NextFloat() - .5f) / 2;
 
         RectInt newRoom1 = new RectInt(room.x, room.y, Mathf.RoundToInt((float)(room.width / splitRatio)), room.height);
         RectInt newRoom2 = new RectInt(room.x + newRoom1.width - 1, room.y, room.width - newRoom1.width + 1, room.height);
@@ -82,7 +110,7 @@ public class DungeonGenerator : MonoBehaviour
     {
         RectInt[] newRooms = new RectInt[2];
 
-        float splitRatio = 2 + (Random.value - .5f) / 2;
+        float splitRatio = 2 + (rng.NextFloat() - .5f) / 2;
 
         RectInt newRoom1 = new RectInt(room.x, room.y, room.width, Mathf.RoundToInt((float)(room.height / splitRatio)));
         RectInt newRoom2 = new RectInt(room.x, room.y + newRoom1.height - 1, room.width, room.height - newRoom1.height + 1);
@@ -99,10 +127,10 @@ public class DungeonGenerator : MonoBehaviour
         List<RectInt> roomsToCheck = new List<RectInt>(generatedRooms);
         RectInt lastRemovedRoom = default;
 
-        again:
+    again:
         while (MapIsValid(remainingRooms) && remainingRooms.Count > generatedRooms.Count * (1 - (removePercentage / 100)) && roomsToCheck.Count > 0)
         {
-            int index = Mathf.RoundToInt(Random.value * (roomsToCheck.Count - 1));
+            int index = Mathf.RoundToInt(rng.NextFloat() * (roomsToCheck.Count - 1));
 
             Debug.Log(index);
 
@@ -120,7 +148,6 @@ public class DungeonGenerator : MonoBehaviour
 
         finalRooms = remainingRooms;
     }
-
     bool MapIsValid(List<RectInt> remainingRooms)
     {
         // TO DO: Increase efficiency
@@ -128,7 +155,7 @@ public class DungeonGenerator : MonoBehaviour
         List<RectInt> roomsToCheck = new List<RectInt>(remainingRooms);
         HashSet<RectInt> connectedRooms = new HashSet<RectInt>() { remainingRooms[0] };
 
-        point:
+    point:
         foreach (RectInt room in roomsToCheck)
         {
             foreach (RectInt room2 in connectedRooms)
@@ -156,15 +183,18 @@ public class DungeonGenerator : MonoBehaviour
     }
     void DrawRooms()
     {
-        foreach (RectInt room in finalRooms)
-        {
-            AlgorithmsUtils.DebugRectInt(room, Color.yellow, Time.deltaTime);
-        }
+        if (!generationFinished)
+            foreach (RectInt room in generatedRooms) { AlgorithmsUtils.DebugRectInt(room, Color.green, Time.deltaTime, false, 0.1f); }
+        else 
+            foreach(RectInt room in finalRooms) { AlgorithmsUtils.DebugRectInt(room, Color.green, Time.deltaTime, false, 0.1f); }
     }
     [Button] void Redraw()
     {
+        StopAllCoroutines();
+        roomsToCheck.Clear();
         generatedRooms.Clear();
+        generationFinished = false;
         finalRooms.Clear();
-        Start();
+        StartCoroutine(Start());
     }
 }

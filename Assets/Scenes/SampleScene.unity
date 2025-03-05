@@ -304,7 +304,10 @@ MonoBehaviour:
   size: {x: 100, y: 100}
   maxRoomSize: {x: 10, y: 10}
   generatedRooms: []
+  removePercentage: 75
   finalRooms: []
+  waitTime: 0.1
+  waitAfterGeneration: 3
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
