@@ -300,14 +300,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d68ad47f4c0f9c44fabcd9bfaa31528c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  seed: 0
+  seed: 1
   size: {x: 100, y: 100}
   maxRoomSize: {x: 10, y: 10}
   generatedRooms: []
-  removePercentage: 75
+  removePercentage: 25
+  DoorSize: 0
+  path: []
+  doors: []
   finalRooms: []
-  waitTime: 0.1
-  waitAfterGeneration: 3
+  waitTime: 0
+  waitAfterGeneration: 1
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0

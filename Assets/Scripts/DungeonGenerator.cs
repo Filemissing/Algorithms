@@ -5,6 +5,8 @@ using NaughtyAttributes;
 using Random = Unity.Mathematics.Random;
 using System.Collections;
 using System;
+using System.Linq;
+using UnityEditor.Experimental.GraphView;
 
 public class DungeonGenerator : MonoBehaviour
 {
@@ -19,8 +21,13 @@ public class DungeonGenerator : MonoBehaviour
     public List<RectInt> generatedRooms = new List<RectInt>();
     bool generationFinished = false;
 
-    [Header("Removal")]
+    [Header("Path")]
     public float removePercentage = 75;
+    public float DoorSize;
+
+    Dictionary<RectInt, RectInt[]> adjacentRooms = new Dictionary<RectInt, RectInt[]>();
+    public RectInt[] path;
+    public List<Door> doors = new List<Door>();
     public List<RectInt> finalRooms = new List<RectInt>();
 
     [HorizontalLine]
@@ -38,7 +45,9 @@ public class DungeonGenerator : MonoBehaviour
 
         yield return new WaitUntil(() => generationFinished);
 
-        RemoveRooms();
+        GetAdjacentRooms();
+
+        StartCoroutine(GeneratePath());
     }
 
     void Initilize()
@@ -121,33 +130,102 @@ public class DungeonGenerator : MonoBehaviour
         return newRooms;
     }
 
-    void RemoveRooms()
+    void GetAdjacentRooms()
     {
-        List<RectInt> remainingRooms = new List<RectInt>(generatedRooms);
-        List<RectInt> roomsToCheck = new List<RectInt>(generatedRooms);
-        RectInt lastRemovedRoom = default;
-
-    again:
-        while (MapIsValid(remainingRooms) && remainingRooms.Count > generatedRooms.Count * (1 - (removePercentage / 100)) && roomsToCheck.Count > 0)
+        foreach (RectInt room1 in generatedRooms)
         {
-            int index = Mathf.RoundToInt(rng.NextFloat() * (roomsToCheck.Count - 1));
+            List<RectInt> _adjacentRooms = new List<RectInt>();
 
-            Debug.Log(index);
+            foreach (RectInt room2 in generatedRooms)
+            {
+                RectInt intersection = AlgorithmsUtils.Intersect(room1, room2);
 
-            lastRemovedRoom = roomsToCheck[index];
+                if (intersection.width * intersection.height >= DoorSize)
+                {
+                    _adjacentRooms.Add(room2);
+                }
+            }
 
-            remainingRooms.Remove(roomsToCheck[index]);
-            roomsToCheck.RemoveAt(index);
+            adjacentRooms.Add(room1, _adjacentRooms.ToArray());
         }
-
-        if (!MapIsValid(remainingRooms))
-        {
-            remainingRooms.Add(lastRemovedRoom);
-            goto again;
-        }
-
-        finalRooms = remainingRooms;
     }
+    IEnumerator GeneratePath()
+    {
+        RectInt startingRoom = generatedRooms[rng.NextInt(0, generatedRooms.Count - 1)];
+
+        path = new RectInt[Mathf.RoundToInt(generatedRooms.Count * (1 - removePercentage / 100))];
+
+        path[0] = startingRoom;
+
+        for (int i = 1; i < path.Length; i++)
+        {
+            int neighboorRetries = 0;
+            int keyRetries = 0;
+
+            RectInt key = path[i - 1];
+            int neighbourCount = adjacentRooms[key].Length - 1;
+            int index = rng.NextInt(0, neighbourCount);
+
+        retry:
+            //Debug.Log("neignbors = " + adjacentRooms[key].Length + " index: " + index);
+            if (!path.Contains(adjacentRooms[key][index]))
+            {
+                RectInt startRoom = path[i - 1];
+                RectInt newRoom = adjacentRooms[key][index];
+                path[i] = newRoom;
+
+                Door newDoor = new Door();
+                newDoor.room1 = startRoom;
+                newDoor.room2 = newRoom;
+                RectInt intersection = AlgorithmsUtils.Intersect(startRoom, newRoom);
+
+                Debug.Log($"startRoom: {startRoom}, newRoom: {newRoom} | intersection {intersection}");
+
+                if (intersection.height == 1)
+                {
+                    newDoor.rect = new RectInt(intersection.x + Mathf.RoundToInt(intersection.width / 2) - 1, intersection.y, 2, 1);
+                }
+                else
+                {
+                    newDoor.rect = new RectInt(intersection.x, intersection.y + Mathf.RoundToInt(intersection.height / 2) - 1, 1, 2);
+                }
+
+                doors.Add(newDoor);
+            }
+            else if (neighboorRetries < neighbourCount)
+            {
+                // retry with a different neighboor
+                neighboorRetries++;
+
+                //Debug.Log($"oldIndex {index}, neighboorCount {neighbourCount}");
+
+                index = (index + 1) % neighbourCount;
+                goto retry;
+            }
+            else if(keyRetries < i - 1)// dead end - go back to a previous room
+            {
+                keyRetries++;
+                neighboorRetries = 0;
+
+                //Debug.Log($"i: {i}, keyRetries: {keyRetries} | index: {i - 1 - keyRetries}");
+
+                key = path[i - 1 - keyRetries];
+                neighbourCount = adjacentRooms[key].Length - 1;
+                index = rng.NextInt(0, neighbourCount);
+                goto retry;
+            }
+            else // no more possible rooms - probably will never trigger
+            {
+                //Debug.LogWarning($"returned - i: {i}, neighboorRetries: {neighboorRetries}, keyRetries: {keyRetries}, index: {index}");
+                yield break;
+            }
+
+            AlgorithmsUtils.DebugRectInt(key, Color.magenta, waitTime, false, .5f);
+
+            yield return new WaitForSeconds(waitTime);
+        }
+    }
+
     bool MapIsValid(List<RectInt> remainingRooms)
     {
         // TO DO: Increase efficiency
@@ -185,16 +263,31 @@ public class DungeonGenerator : MonoBehaviour
     {
         if (!generationFinished)
             foreach (RectInt room in generatedRooms) { AlgorithmsUtils.DebugRectInt(room, Color.green, Time.deltaTime, false, 0.1f); }
-        else 
-            foreach(RectInt room in finalRooms) { AlgorithmsUtils.DebugRectInt(room, Color.green, Time.deltaTime, false, 0.1f); }
+        else
+        {
+            foreach (RectInt room in path) { AlgorithmsUtils.DebugRectInt(room, Color.green, Time.deltaTime, false, 0.1f); }
+            foreach (Door door in doors) { AlgorithmsUtils.DebugRectInt(door.rect, Color.cyan, Time.deltaTime, false, 0.1f); }
+        }
+            
     }
-    [Button] void Redraw()
+    [Button]
+    void Redraw()
     {
         StopAllCoroutines();
         roomsToCheck.Clear();
         generatedRooms.Clear();
         generationFinished = false;
         finalRooms.Clear();
+        adjacentRooms.Clear();
+        path = new RectInt[0];
+        doors.Clear();
         StartCoroutine(Start());
     }
+}
+
+[System.Serializable] public struct Door
+{
+    public RectInt rect;
+    public RectInt room1;
+    public RectInt room2;
 }
