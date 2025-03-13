@@ -8,6 +8,7 @@ using System;
 using System.Linq;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine.Analytics;
+using Unity.VisualScripting;
 
 public class DungeonGenerator : MonoBehaviour
 {
@@ -28,6 +29,7 @@ public class DungeonGenerator : MonoBehaviour
     Dictionary<RectInt, RectInt[]> adjacentRooms = new Dictionary<RectInt, RectInt[]>();
     public RectInt[] path;
     public List<Door> doors = new List<Door>();
+    bool pathFinished = false;
 
     [HorizontalLine]
     [Header("Animation")]
@@ -37,7 +39,7 @@ public class DungeonGenerator : MonoBehaviour
 
     [HorizontalLine]
     [Header("Graph")]
-    public Dictionary<Vector3, List<Vector3>> graph = new();
+    public Graph<RectInt> graph = new();
 
     List<RectInt> roomsToCheck = new List<RectInt>();
 
@@ -52,6 +54,10 @@ public class DungeonGenerator : MonoBehaviour
         GetAdjacentRooms();
 
         StartCoroutine(GeneratePath());
+
+        yield return new WaitUntil(() => pathFinished);
+
+        GenerateFinalGraph();
     }
 
     void Initilize()
@@ -230,11 +236,28 @@ public class DungeonGenerator : MonoBehaviour
 
             if (doAnimation) yield return new WaitForSeconds(waitTime);
         }
+        pathFinished = true;
     }
 
+    void GenerateFinalGraph()
+    {
+        foreach(Door door in doors) // doors are a struct referencing 2 rooms so they can act as edges
+        {
+            graph.AddEdge(door.room1, door.room2);
+        }
+    }
+
+    [Header("Debugging")]
+    public Transform cursor;
     private void Update()
     {
         DrawRooms();
+        DrawGraph();
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            Debug.Log(FindRoomAtPosition(cursor.position));
+        }
     }
     void DrawRooms()
     {
@@ -247,6 +270,16 @@ public class DungeonGenerator : MonoBehaviour
         }
             
     }
+    void DrawGraph()
+    {
+        foreach(RectInt rect in graph.GetNodes()) { DebugExtension.DebugCircle(GetMiddle(rect), Color.magenta, Mathf.Min(rect.width, rect.height) / 4); }
+        foreach(Door door in doors) { Debug.DrawLine(GetMiddle(door.room1), GetMiddle(door.room2), Color.magenta, Time.deltaTime); }
+    }
+
+    Vector3 GetMiddle(RectInt rect)
+    {
+        return new Vector3(rect.x + rect.width / 2, 0, rect.y + rect.height / 2);
+    }
     [Button] void Redraw()
     {
         StopAllCoroutines();
@@ -256,7 +289,31 @@ public class DungeonGenerator : MonoBehaviour
         adjacentRooms.Clear();
         path = new RectInt[0];
         doors.Clear();
+        pathFinished = false;
+        graph.Clear();
         StartCoroutine(Start());
+    }
+    [Button] void CheckGraphBFS()
+    {
+        graph.BFS(path[0]);
+    }
+    [Button] void CheckGraphDFS()
+    {
+        graph.DFS(path[0]);
+    }
+
+    RectInt FindRoomAtPosition(Vector3 position)
+    {
+        foreach (RectInt room in path)
+        {
+            if (room.x + room.width < position.x) continue;
+            if (room.y + room.height < position.z) continue;
+            if (room.x > position.x) continue;
+            if (room.y > position.z) continue;
+
+            return room;
+        }
+        return default;
     }
 
     //[Button] void CheckDoors()
