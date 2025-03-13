@@ -7,6 +7,7 @@ using System.Collections;
 using System;
 using System.Linq;
 using UnityEditor.Experimental.GraphView;
+using UnityEngine.Analytics;
 
 public class DungeonGenerator : MonoBehaviour
 {
@@ -24,16 +25,19 @@ public class DungeonGenerator : MonoBehaviour
     [Header("Path")]
     public float removePercentage = 75;
     public float DoorSize;
-
     Dictionary<RectInt, RectInt[]> adjacentRooms = new Dictionary<RectInt, RectInt[]>();
     public RectInt[] path;
     public List<Door> doors = new List<Door>();
-    public List<RectInt> finalRooms = new List<RectInt>();
 
     [HorizontalLine]
     [Header("Animation")]
+    public bool doAnimation;
     public float waitTime;
     public float waitAfterGeneration;
+
+    [HorizontalLine]
+    [Header("Graph")]
+    public Dictionary<Vector3, List<Vector3>> graph = new();
 
     List<RectInt> roomsToCheck = new List<RectInt>();
 
@@ -92,12 +96,12 @@ public class DungeonGenerator : MonoBehaviour
 
                 foreach (RectInt createdRoom in newRooms) { AlgorithmsUtils.DebugRectInt(createdRoom, Color.cyan, waitTime); }
 
-                yield return new WaitForSeconds(waitTime);
+                if(doAnimation) yield return new WaitForSeconds(waitTime);
             }
             roomsToCheck = newRooms;
         }
 
-        yield return new WaitForSeconds(waitAfterGeneration);
+        if (doAnimation) yield return new WaitForSeconds(waitAfterGeneration);
 
         generationFinished = true;
     }
@@ -138,7 +142,11 @@ public class DungeonGenerator : MonoBehaviour
 
             foreach (RectInt room2 in generatedRooms)
             {
+                if (room1 == room2) continue;
+
                 RectInt intersection = AlgorithmsUtils.Intersect(room1, room2);
+
+                //bool intersects = AlgorithmsUtils.Intersects(room1, room2);
 
                 if (intersection.width * intersection.height >= DoorSize)
                 {
@@ -170,7 +178,7 @@ public class DungeonGenerator : MonoBehaviour
             //Debug.Log("neignbors = " + adjacentRooms[key].Length + " index: " + index);
             if (!path.Contains(adjacentRooms[key][index]))
             {
-                RectInt startRoom = path[i - 1];
+                RectInt startRoom = key;
                 RectInt newRoom = adjacentRooms[key][index];
                 path[i] = newRoom;
 
@@ -178,8 +186,6 @@ public class DungeonGenerator : MonoBehaviour
                 newDoor.room1 = startRoom;
                 newDoor.room2 = newRoom;
                 RectInt intersection = AlgorithmsUtils.Intersect(startRoom, newRoom);
-
-                Debug.Log($"startRoom: {startRoom}, newRoom: {newRoom} | intersection {intersection}");
 
                 if (intersection.height == 1)
                 {
@@ -222,37 +228,8 @@ public class DungeonGenerator : MonoBehaviour
 
             AlgorithmsUtils.DebugRectInt(key, Color.magenta, waitTime, false, .5f);
 
-            yield return new WaitForSeconds(waitTime);
+            if (doAnimation) yield return new WaitForSeconds(waitTime);
         }
-    }
-
-    bool MapIsValid(List<RectInt> remainingRooms)
-    {
-        // TO DO: Increase efficiency
-
-        List<RectInt> roomsToCheck = new List<RectInt>(remainingRooms);
-        HashSet<RectInt> connectedRooms = new HashSet<RectInt>() { remainingRooms[0] };
-
-    point:
-        foreach (RectInt room in roomsToCheck)
-        {
-            foreach (RectInt room2 in connectedRooms)
-            {
-                if (room.Equals(room2)) continue;
-
-                // if room1 intersects with any room already in connectedRooms add it to connectedrooms
-                if (AlgorithmsUtils.Intersects(room, room2))
-                {
-                    connectedRooms.Add(room);
-                    roomsToCheck.Remove(room);
-
-                    goto point;
-                }
-            }
-        }
-
-        // if connectedRooms contains all remainingRooms the map is valid
-        return connectedRooms.Count == remainingRooms.Count;
     }
 
     private void Update()
@@ -270,19 +247,26 @@ public class DungeonGenerator : MonoBehaviour
         }
             
     }
-    [Button]
-    void Redraw()
+    [Button] void Redraw()
     {
         StopAllCoroutines();
         roomsToCheck.Clear();
         generatedRooms.Clear();
         generationFinished = false;
-        finalRooms.Clear();
         adjacentRooms.Clear();
         path = new RectInt[0];
         doors.Clear();
         StartCoroutine(Start());
     }
+
+    //[Button] void CheckDoors()
+    //{
+    //    for (int i = 0; i < doors.Count - 1; i++)
+    //    {
+    //        Door door = doors[i];
+    //        if (door.rect.y == -1) Debug.Log($"Found Invalid door at index {i} connecting {door.room1} | index  and {door.room2}");
+    //    }
+    //}
 }
 
 [System.Serializable] public struct Door

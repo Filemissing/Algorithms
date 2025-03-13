@@ -305,7 +305,7 @@ MonoBehaviour:
   maxRoomSize: {x: 10, y: 10}
   generatedRooms: []
   removePercentage: 25
-  DoorSize: 0
+  DoorSize: 4
   path: []
   doors: []
   finalRooms: []
