@@ -23,13 +23,10 @@ public class DungeonGenerator : MonoBehaviour
     public List<RectInt> generatedRooms = new List<RectInt>();
     bool generationFinished = false;
 
-    [Header("Path")]
-    public float removePercentage = 75;
-    public float DoorSize;
-    Dictionary<RectInt, RectInt[]> adjacentRooms = new Dictionary<RectInt, RectInt[]>();
-    public RectInt[] path;
-    public List<Door> doors = new List<Door>();
-    bool pathFinished = false;
+    [Header("Doors")]
+    public int doorArea;
+    public List<Door> doors = new();
+
 
     [HorizontalLine]
     [Header("Animation")]
@@ -40,8 +37,7 @@ public class DungeonGenerator : MonoBehaviour
     [HorizontalLine]
     [Header("Graph")]
     public Graph<RectInt> graph = new();
-
-    List<RectInt> roomsToCheck = new List<RectInt>();
+    bool graphFinished = false;
 
     IEnumerator Start()
     {
@@ -51,13 +47,11 @@ public class DungeonGenerator : MonoBehaviour
 
         yield return new WaitUntil(() => generationFinished);
 
-        GetAdjacentRooms();
+        StartCoroutine(GenerateGraph());
 
-        StartCoroutine(GeneratePath());
+        yield return new WaitUntil(() => graphFinished);
 
-        yield return new WaitUntil(() => pathFinished);
-
-        GenerateFinalGraph();
+        StartCoroutine(RemoveRooms());
     }
 
     void Initilize()
@@ -68,6 +62,7 @@ public class DungeonGenerator : MonoBehaviour
         roomsToCheck.Add(startRoom);
     }
 
+    List<RectInt> roomsToCheck = new List<RectInt>();
     IEnumerator CreateRooms()
     {
         while (roomsToCheck.Count > 0)
@@ -140,113 +135,63 @@ public class DungeonGenerator : MonoBehaviour
         return newRooms;
     }
 
-    void GetAdjacentRooms()
+    IEnumerator GenerateGraph()
     {
-        foreach (RectInt room1 in generatedRooms)
+        foreach(RectInt room1 in generatedRooms)
         {
-            List<RectInt> _adjacentRooms = new List<RectInt>();
-
-            foreach (RectInt room2 in generatedRooms)
+            graph.AddNode(room1);
+            foreach(RectInt room2 in generatedRooms)
             {
                 if (room1 == room2) continue;
 
                 RectInt intersection = AlgorithmsUtils.Intersect(room1, room2);
 
-                //bool intersects = AlgorithmsUtils.Intersects(room1, room2);
-
-                if (intersection.width * intersection.height >= DoorSize)
+                if (intersection.width * intersection.height >= doorArea) // the rooms are connectable
                 {
-                    _adjacentRooms.Add(room2);
+                    graph.AddEdge(room1, room2);
                 }
-            }
 
-            adjacentRooms.Add(room1, _adjacentRooms.ToArray());
+                AlgorithmsUtils.DebugRectInt(room1, Color.cyan, waitTime);
+                AlgorithmsUtils.DebugRectInt(room2, Color.cyan, waitTime);
+
+                if (doAnimation) yield return new WaitForSeconds(waitTime);
+            }
+            if (doAnimation) yield return new WaitForSeconds(waitTime);
         }
+
+        graphFinished = true;
     }
-    IEnumerator GeneratePath()
+
+    IEnumerator RemoveRooms()
     {
-        RectInt startingRoom = generatedRooms[rng.NextInt(0, generatedRooms.Count - 1)];
+        List<RectInt> roomsToRemove = new(graph.GetNodes());
+        roomsToRemove = roomsToRemove.OrderBy(x => x.width * x.height).Take(Mathf.RoundToInt(generatedRooms.Count * 0.1f)).ToList(); // get the 10% smallest rooms
 
-        path = new RectInt[Mathf.RoundToInt(generatedRooms.Count * (1 - removePercentage / 100))];
-
-        path[0] = startingRoom;
-
-        for (int i = 1; i < path.Length; i++)
+        for (int i = 0; i < roomsToRemove.Count - 1; i++)
         {
-            int neighboorRetries = 0;
-            int keyRetries = 0;
+            RectInt roomToRemove = roomsToRemove[i];
 
-            RectInt key = path[i - 1];
-            int neighbourCount = adjacentRooms[key].Length - 1;
-            int index = rng.NextInt(0, neighbourCount);
+            RectInt[] connectedRooms = graph.GetNeighbors(roomToRemove).ToArray();
 
-        retry:
-            //Debug.Log("neignbors = " + adjacentRooms[key].Length + " index: " + index);
-            if (!path.Contains(adjacentRooms[key][index]))
+            graph.RemoveNode(roomToRemove);
+
+            if(!graph.BFS(graph.GetNodes()[0])) // if the graph is no longer fully connected
             {
-                RectInt startRoom = key;
-                RectInt newRoom = adjacentRooms[key][index];
-                path[i] = newRoom;
-
-                Door newDoor = new Door();
-                newDoor.room1 = startRoom;
-                newDoor.room2 = newRoom;
-                RectInt intersection = AlgorithmsUtils.Intersect(startRoom, newRoom);
-
-                if (intersection.height == 1)
+                // add the node and it's connections back to the graph
+                graph.AddNode(roomToRemove);
+                foreach (RectInt room in connectedRooms)
                 {
-                    newDoor.rect = new RectInt(intersection.x + Mathf.RoundToInt(intersection.width / 2) - 1, intersection.y, 2, 1);
+                    graph.AddEdge(roomToRemove, room);
+                    graph.AddEdge(room, roomToRemove);
                 }
-                else
-                {
-                    newDoor.rect = new RectInt(intersection.x, intersection.y + Mathf.RoundToInt(intersection.height / 2) - 1, 1, 2);
-                }
-
-                doors.Add(newDoor);
+                break;
             }
-            else if (neighboorRetries < neighbourCount)
-            {
-                // retry with a different neighboor
-                neighboorRetries++;
-
-                //Debug.Log($"oldIndex {index}, neighboorCount {neighbourCount}");
-
-                index = (index + 1) % neighbourCount;
-                goto retry;
-            }
-            else if(keyRetries < i - 1)// dead end - go back to a previous room
-            {
-                keyRetries++;
-                neighboorRetries = 0;
-
-                //Debug.Log($"i: {i}, keyRetries: {keyRetries} | index: {i - 1 - keyRetries}");
-
-                key = path[i - 1 - keyRetries];
-                neighbourCount = adjacentRooms[key].Length - 1;
-                index = rng.NextInt(0, neighbourCount);
-                goto retry;
-            }
-            else // no more possible rooms - probably will never trigger
-            {
-                //Debug.LogWarning($"returned - i: {i}, neighboorRetries: {neighboorRetries}, keyRetries: {keyRetries}, index: {index}");
-                yield break;
-            }
-
-            AlgorithmsUtils.DebugRectInt(key, Color.magenta, waitTime, false, .5f);
 
             if (doAnimation) yield return new WaitForSeconds(waitTime);
         }
-        pathFinished = true;
     }
 
-    void GenerateFinalGraph()
-    {
-        foreach(Door door in doors) // doors are a struct referencing 2 rooms so they can act as edges
-        {
-            graph.AddEdge(door.room1, door.room2);
-        }
-    }
-
+    [HorizontalLine]
     [Header("Debugging")]
     public Transform cursor;
     private void Update()
@@ -263,48 +208,48 @@ public class DungeonGenerator : MonoBehaviour
     {
         if (!generationFinished)
             foreach (RectInt room in generatedRooms) { AlgorithmsUtils.DebugRectInt(room, Color.green, Time.deltaTime, false, 0.1f); }
-        else
-        {
-            foreach (RectInt room in path) { AlgorithmsUtils.DebugRectInt(room, Color.green, Time.deltaTime, false, 0.1f); }
-            foreach (Door door in doors) { AlgorithmsUtils.DebugRectInt(door.rect, Color.cyan, Time.deltaTime, false, 0.1f); }
-        }
-            
     }
     void DrawGraph()
     {
-        foreach(RectInt rect in graph.GetNodes()) { DebugExtension.DebugCircle(GetMiddle(rect), Color.magenta, Mathf.Min(rect.width, rect.height) / 4); }
-        foreach(Door door in doors) { Debug.DrawLine(GetMiddle(door.room1), GetMiddle(door.room2), Color.magenta, Time.deltaTime); }
+        foreach(RectInt node in graph.GetNodes()) 
+        {
+            AlgorithmsUtils.DebugRectInt(node, Color.green);
+            DebugExtension.DebugCircle(GetMiddle(node), Color.magenta, Mathf.Min(node.width, node.height) / 4); 
+            foreach(RectInt connection in graph.GetNeighbors(node))
+            {
+                Debug.DrawLine(GetMiddle(node), GetMiddle(connection), Color.magenta);
+            }
+        }
     }
 
+    // helper functions
     Vector3 GetMiddle(RectInt rect)
     {
         return new Vector3(rect.x + rect.width / 2, 0, rect.y + rect.height / 2);
     }
+
     [Button] void Redraw()
     {
         StopAllCoroutines();
         roomsToCheck.Clear();
         generatedRooms.Clear();
         generationFinished = false;
-        adjacentRooms.Clear();
-        path = new RectInt[0];
-        doors.Clear();
-        pathFinished = false;
         graph.Clear();
+        graphFinished = false;
         StartCoroutine(Start());
     }
     [Button] void CheckGraphBFS()
     {
-        graph.BFS(path[0]);
+        graph.BFS(graph.GetNodes()[0]);
     }
     [Button] void CheckGraphDFS()
     {
-        graph.DFS(path[0]);
+        graph.DFS(graph.GetNodes()[0]);
     }
 
     RectInt FindRoomAtPosition(Vector3 position)
     {
-        foreach (RectInt room in path)
+        foreach (RectInt room in graph.GetNodes())
         {
             if (room.x + room.width < position.x) continue;
             if (room.y + room.height < position.z) continue;
@@ -315,15 +260,6 @@ public class DungeonGenerator : MonoBehaviour
         }
         return default;
     }
-
-    //[Button] void CheckDoors()
-    //{
-    //    for (int i = 0; i < doors.Count - 1; i++)
-    //    {
-    //        Door door = doors[i];
-    //        if (door.rect.y == -1) Debug.Log($"Found Invalid door at index {i} connecting {door.room1} | index  and {door.room2}");
-    //    }
-    //}
 }
 
 [System.Serializable] public struct Door
