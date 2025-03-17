@@ -22,7 +22,7 @@ public class Graph<T>
         {
             adjacencyList.Remove(node);
         }
-        
+
         foreach (var key in adjacencyList.Keys)
         {
             adjacencyList[key].Remove(node);
@@ -54,6 +54,7 @@ public class Graph<T>
         }
     }
 
+    //<summary> "Adds a BiDirectional edge to the graph" </summary>
     public void AddEdge(T fromNode, T toNode) { 
         if (!adjacencyList.ContainsKey(fromNode))
         {
@@ -61,10 +62,17 @@ public class Graph<T>
         }
         if (!adjacencyList.ContainsKey(toNode)) { 
             AddNode(toNode);
-        } 
-        
-        adjacencyList[fromNode].Add(toNode); 
-        adjacencyList[toNode].Add(fromNode); 
+        }
+
+        // Prevent duplicate edges
+        if (!adjacencyList[fromNode].Contains(toNode))
+        {
+            adjacencyList[fromNode].Add(toNode);
+        }
+        if (!adjacencyList[toNode].Contains(fromNode))
+        {
+            adjacencyList[toNode].Add(fromNode);
+        }
     } 
     
     public List<T> GetNeighbors(T node) 
@@ -90,7 +98,7 @@ public class Graph<T>
     {
         Queue<T> queue = new();
 
-        HashSet<T> visited = new();
+        HashSet<T> discovered = new();
 
         queue.Enqueue(startNode);
 
@@ -98,25 +106,24 @@ public class Graph<T>
         {
             T node = queue.Dequeue();
 
-            visited.Add(node);
-
             foreach(T connectedNode in adjacencyList[node])
             {
-                if (!visited.Contains(connectedNode))
+                if (!discovered.Contains(connectedNode))
                 {
-                    queue.Enqueue(connectedNode); 
+                    queue.Enqueue(connectedNode);
+                    discovered.Add(connectedNode);
                 }
             }
         }
 
-        if (visited.Count == GetNodeCount())
+        if (discovered.Count == GetNodeCount())
         {
             Debug.Log("Graph is fully connected");
             return true;
         }
         else
         {
-            Debug.Log($"Graph is not fully connected | Connected Rooms: {visited.Count}, Graph Size: {GetNodeCount()}");
+            Debug.Log($"Graph is not fully connected | Connected Rooms: {discovered.Count}, Graph Size: {GetNodeCount()}");
             return false;
         }
     }
@@ -124,35 +131,34 @@ public class Graph<T>
     // Depth-First Search (DFS)
     public bool DFS(T startNode)
     {
-        Stack<T> queue = new();
+        Stack<T> stack = new();
 
-        HashSet<T> visited = new();
+        HashSet<T> discovered = new();
 
-        queue.Push(startNode);
+        stack.Push(startNode);
 
-        while (queue.Count > 0)
+        while (stack.Count > 0)
         {
-            T node = queue.Pop();
-
-            visited.Add(node);
+            T node = stack.Pop();
 
             foreach (T connectedNode in adjacencyList[node])
             {
-                if (!visited.Contains(connectedNode))
+                if (!discovered.Contains(connectedNode))
                 {
-                    queue.Push(connectedNode);
+                    stack.Push(connectedNode);
+                    discovered.Add(connectedNode);
                 }
             }
         }
 
-        if (visited.Count == GetNodeCount())
+        if (discovered.Count == GetNodeCount())
         {
             Debug.Log("Graph is fully connected");
             return true;
         }
         else
         {
-            Debug.Log($"Graph is not fully connected | Connected Rooms: {visited.Count}, Graph Size: {GetNodeCount()}");
+            Debug.Log($"Graph is not fully connected | Connected Rooms: {discovered.Count}, Graph Size: {GetNodeCount()}");
             return false;
         }
     }

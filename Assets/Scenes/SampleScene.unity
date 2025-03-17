@@ -332,7 +332,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   seed: 1
-  size: {x: 100, y: 100}
+  size: {x: 100, y: 50}
   maxRoomSize: {x: 10, y: 10}
   generatedRooms: []
   doorArea: 4
