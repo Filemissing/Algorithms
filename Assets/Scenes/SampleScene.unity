@@ -332,14 +332,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   seed: 1
-  size: {x: 100, y: 50}
+  size: {x: 50, y: 50}
   maxRoomSize: {x: 10, y: 10}
   generatedRooms: []
+  removePercentage: 50
+  useDFS: 0
   doorArea: 4
   doors: []
   doAnimation: 1
   waitTime: 0
-  waitAfterGeneration: 1
   cursor: {fileID: 103741541}
 --- !u!1 &410087039
 GameObject:

@@ -94,7 +94,7 @@ public class Graph<T>
     }
     
     // Breadth-First Search (BFS)
-    public bool BFS(T startNode)
+    public bool BFS(T startNode, bool print = false)
     {
         Queue<T> queue = new();
 
@@ -102,7 +102,9 @@ public class Graph<T>
 
         queue.Enqueue(startNode);
 
-        while(queue.Count > 0)
+        discovered.Add(startNode);
+
+        while (queue.Count > 0)
         {
             T node = queue.Dequeue();
 
@@ -118,24 +120,26 @@ public class Graph<T>
 
         if (discovered.Count == GetNodeCount())
         {
-            Debug.Log("Graph is fully connected");
+            if (print) Debug.Log("Graph is fully connected");
             return true;
         }
         else
         {
-            Debug.Log($"Graph is not fully connected | Connected Rooms: {discovered.Count}, Graph Size: {GetNodeCount()}");
+            if (print) Debug.Log($"Graph is not fully connected | Connected Rooms: {discovered.Count}, Graph Size: {GetNodeCount()}");
             return false;
         }
     }
 
     // Depth-First Search (DFS)
-    public bool DFS(T startNode)
+    public bool DFS(T startNode, bool print = false)
     {
         Stack<T> stack = new();
 
         HashSet<T> discovered = new();
 
         stack.Push(startNode);
+
+        discovered.Add(startNode);
 
         while (stack.Count > 0)
         {
@@ -153,12 +157,12 @@ public class Graph<T>
 
         if (discovered.Count == GetNodeCount())
         {
-            Debug.Log("Graph is fully connected");
+            if (print) Debug.Log("Graph is fully connected");
             return true;
         }
         else
         {
-            Debug.Log($"Graph is not fully connected | Connected Rooms: {discovered.Count}, Graph Size: {GetNodeCount()}");
+            if (print) Debug.Log($"Graph is not fully connected | Connected Rooms: {discovered.Count}, Graph Size: {GetNodeCount()}");
             return false;
         }
     }

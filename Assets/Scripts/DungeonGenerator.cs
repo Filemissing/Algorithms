@@ -6,9 +6,7 @@ using Random = Unity.Mathematics.Random;
 using System.Collections;
 using System;
 using System.Linq;
-using UnityEditor.Experimental.GraphView;
-using UnityEngine.Analytics;
-using Unity.VisualScripting;
+using UnityEngine.UIElements;
 
 public class DungeonGenerator : MonoBehaviour
 {
@@ -23,35 +21,41 @@ public class DungeonGenerator : MonoBehaviour
     public List<RectInt> generatedRooms = new List<RectInt>();
     bool generationFinished = false;
 
+    [Header("Graph")]
+    public Graph<RectInt> graph = new();
+    bool graphFinished = false;
+
+    [Header("Room Removal")]
+    public float removePercentage;
+    bool removalFinished = false;
+
+    [Header("Path Removal")]
+    [Tooltip("Switches between DFS and BFS")]
+    public bool useDFS;
+    bool removedCyclicPaths = false;
+
     [Header("Doors")]
     public int doorArea;
     public List<Door> doors = new();
-
 
     [HorizontalLine]
     [Header("Animation")]
     public bool doAnimation;
     public float waitTime;
-    public float waitAfterGeneration;
-
-    [HorizontalLine]
-    [Header("Graph")]
-    public Graph<RectInt> graph = new();
-    bool graphFinished = false;
 
     IEnumerator Start()
     {
         Initilize();
 
-        StartCoroutine(CreateRooms());
+        yield return StartCoroutine(CreateRooms());
 
-        yield return new WaitUntil(() => generationFinished);
+        yield return StartCoroutine(GenerateGraph());
 
-        StartCoroutine(GenerateGraph());
+        yield return StartCoroutine(RemoveRooms());
 
-        yield return new WaitUntil(() => graphFinished);
+        yield return StartCoroutine(RemoveCyclicPaths());
 
-        StartCoroutine(RemoveRooms());
+        yield return StartCoroutine(SpawnDoors());
     }
 
     void Initilize()
@@ -102,8 +106,6 @@ public class DungeonGenerator : MonoBehaviour
             roomsToCheck = newRooms;
         }
 
-        if (doAnimation) yield return new WaitForSeconds(waitAfterGeneration);
-
         generationFinished = true;
     }
     RectInt[] SplitVertically(RectInt room)
@@ -151,8 +153,8 @@ public class DungeonGenerator : MonoBehaviour
                     graph.AddEdge(room1, room2);
                 }
 
-                AlgorithmsUtils.DebugRectInt(room1, Color.cyan, waitTime);
-                AlgorithmsUtils.DebugRectInt(room2, Color.cyan, waitTime);
+                AlgorithmsUtils.DebugRectInt(room1, Color.cyan, waitTime, false, 1);
+                AlgorithmsUtils.DebugRectInt(room2, Color.cyan, waitTime, false, 1);
 
                 if (doAnimation) yield return new WaitForSeconds(waitTime);
             }
@@ -164,12 +166,16 @@ public class DungeonGenerator : MonoBehaviour
 
     IEnumerator RemoveRooms()
     {
-        List<RectInt> roomsToRemove = new(graph.GetNodes());
-        roomsToRemove = roomsToRemove.OrderBy(x => x.width * x.height).Take(Mathf.RoundToInt(generatedRooms.Count * 0.1f)).ToList(); // get the 10% smallest rooms
+        int AmountToRemove = Mathf.RoundToInt(generatedRooms.Count * (removePercentage / 100f));
+        List<RectInt> orderedRooms = new(graph.GetNodes());
+        orderedRooms = orderedRooms.OrderBy(x => x.width * x.height).ToList();
 
-        for (int i = 0; i < roomsToRemove.Count - 1; i++)
+        int indexToRemove = 0;
+        for (int i = 0; i < AmountToRemove - 1; i++)
         {
-            RectInt roomToRemove = roomsToRemove[i];
+            if (indexToRemove >= orderedRooms.Count) break;
+
+            RectInt roomToRemove = orderedRooms[indexToRemove];
 
             RectInt[] connectedRooms = graph.GetNeighbors(roomToRemove).ToArray();
 
@@ -184,7 +190,126 @@ public class DungeonGenerator : MonoBehaviour
                     graph.AddEdge(roomToRemove, room);
                     graph.AddEdge(room, roomToRemove);
                 }
-                break;
+
+                i--; //retry
+            }
+
+            indexToRemove++;
+
+            if (doAnimation) yield return new WaitForSeconds(waitTime);
+        }
+
+        removalFinished = true;
+    }
+
+    IEnumerator RemoveCyclicPaths()
+    {
+        Graph<RectInt> newGraph = new Graph<RectInt>();
+
+        // generate new edges/paths
+        if(useDFS) // use DFS
+        {
+            Stack<RectInt> stack = new();
+
+            HashSet<RectInt> discovered = new();
+
+            RectInt startNode = graph.GetNodes()[0];
+
+            stack.Push(startNode);
+
+            discovered.Add(startNode);
+
+            while (stack.Count > 0)
+            {
+                RectInt node = stack.Pop();
+
+                foreach (RectInt connectedNode in graph.GetNeighbors(node))
+                {
+                    if (!discovered.Contains(connectedNode)) // found a new room
+                    {
+                        newGraph.AddEdge(node, connectedNode); // add the connection
+
+                        stack.Push(connectedNode);
+                        discovered.Add(connectedNode);
+                    }
+
+                    DrawGraph(newGraph, waitTime);
+                    if (doAnimation) yield return new WaitForSeconds(waitTime);
+                }
+
+                DrawGraph(newGraph, waitTime);
+                if (doAnimation) yield return new WaitForSeconds(waitTime);
+            }
+        }
+        else // use BFS
+        {
+            Queue<RectInt> queue = new();
+
+            HashSet<RectInt> discovered = new();
+
+            RectInt startNode = graph.GetNodes()[0];
+
+            queue.Enqueue(startNode);
+            discovered.Add(startNode);
+
+            while (queue.Count > 0)
+            {
+                RectInt node = queue.Dequeue();
+
+                foreach (RectInt connectedNode in graph.GetNeighbors(node))
+                {
+                    if (!discovered.Contains(connectedNode)) // found a new room
+                    {
+                        newGraph.AddEdge(node, connectedNode); // add the connection
+
+                        queue.Enqueue(connectedNode);
+                        discovered.Add(connectedNode);
+                    }
+
+                    DrawGraph(newGraph, waitTime);
+                    if (doAnimation) yield return new WaitForSeconds(waitTime);
+                }
+
+                DrawGraph(newGraph, waitTime);
+                if (doAnimation) yield return new WaitForSeconds(waitTime);
+            }
+        }
+
+        // replace the old graph
+        graph = newGraph;
+
+        removedCyclicPaths = true;
+    }
+
+    IEnumerator SpawnDoors()
+    {
+        foreach(RectInt node in graph.GetNodes())
+        {
+            foreach(RectInt connectedNode in graph.GetNeighbors(node))
+            {
+                Door newDoor = new();
+
+                newDoor.room1 = node;
+                newDoor.room2 = connectedNode;
+
+                RectInt intersection = AlgorithmsUtils.Intersect(node, connectedNode);
+
+                newDoor.rect = intersection.height == 1 ? // check orientation
+                    new RectInt(rng.NextInt(intersection.xMin + 1, intersection.xMax - 3), intersection.y, 2, 1) // door is horizontal
+                    :
+                    new RectInt(intersection.x, rng.NextInt(intersection.yMin + 1, intersection.yMax - 3), 1, 2); // door is vertical
+
+                bool isDuplicate = doors.Any(door =>
+                    (newDoor.room1 == door.room1 && newDoor.room2 == door.room2)
+                    ||
+                    (newDoor.room1 == door.room2 && newDoor.room2 == door.room1));
+
+                if (!isDuplicate)
+                {
+                    doors.Add(newDoor);
+                }
+
+                if (doAnimation) yield return new WaitForSeconds(waitTime);
             }
 
             if (doAnimation) yield return new WaitForSeconds(waitTime);
@@ -197,7 +322,9 @@ public class DungeonGenerator : MonoBehaviour
     private void Update()
     {
         DrawRooms();
-        DrawGraph();
+        if(!removalFinished || removedCyclicPaths)
+            DrawGraph(graph, Time.deltaTime);
+        DrawDoors();
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -206,26 +333,27 @@ public class DungeonGenerator : MonoBehaviour
     }
     void DrawRooms()
     {
-        if (!generationFinished)
-            foreach (RectInt room in generatedRooms) { AlgorithmsUtils.DebugRectInt(room, Color.green, Time.deltaTime, false, 0.1f); }
+        if (!graphFinished)
+            foreach (RectInt room in generatedRooms) { AlgorithmsUtils.DebugRectInt(room, Color.green, Time.deltaTime); }
     }
-    void DrawGraph()
+    void DrawGraph(Graph<RectInt> graph, float time)
     {
         foreach(RectInt node in graph.GetNodes()) 
         {
-            AlgorithmsUtils.DebugRectInt(node, Color.green);
-            DebugExtension.DebugCircle(GetMiddle(node), Color.magenta, Mathf.Min(node.width, node.height) / 4); 
+            AlgorithmsUtils.DebugRectInt(node, Color.green, time);
+            DebugExtension.DebugCircle(GetMiddle(node), Color.magenta, Mathf.Min(node.width, node.height) / 4, time); 
             foreach(RectInt connection in graph.GetNeighbors(node))
             {
-                Debug.DrawLine(GetMiddle(node), GetMiddle(connection), Color.magenta);
+                Debug.DrawLine(GetMiddle(node), GetMiddle(connection), Color.magenta, time);
             }
         }
     }
-
-    // helper functions
-    Vector3 GetMiddle(RectInt rect)
+    void DrawDoors()
     {
-        return new Vector3(rect.x + rect.width / 2, 0, rect.y + rect.height / 2);
+        foreach (Door door in doors)
+        {
+            AlgorithmsUtils.DebugRectInt(door.rect, Color.cyan, Time.deltaTime, false, .1f);
+        }
     }
 
     [Button] void Redraw()
@@ -236,17 +364,25 @@ public class DungeonGenerator : MonoBehaviour
         generationFinished = false;
         graph.Clear();
         graphFinished = false;
+        removalFinished = false;
+        removedCyclicPaths = false;
+        doors.Clear();
         StartCoroutine(Start());
     }
     [Button] void CheckGraphBFS()
     {
-        graph.BFS(graph.GetNodes()[0]);
+        graph.BFS(graph.GetNodes()[0], true);
     }
     [Button] void CheckGraphDFS()
     {
-        graph.DFS(graph.GetNodes()[0]);
+        graph.DFS(graph.GetNodes()[0], true);
     }
 
+    // helper functions
+    Vector3 GetMiddle(RectInt rect)
+    {
+        return new Vector3((float)rect.x + (float)rect.width / 2f, 0f, (float)rect.y + (float)rect.height / 2f);
+    }
     RectInt FindRoomAtPosition(Vector3 position)
     {
         foreach (RectInt room in graph.GetNodes())
