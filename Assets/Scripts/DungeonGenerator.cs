@@ -38,6 +38,33 @@ public class DungeonGenerator : MonoBehaviour
     public int doorArea;
     public List<Door> doors = new();
 
+    [Header("Assets")]
+    public GameObject floor;
+
+    public GameObject crossWall;
+
+    public GameObject tUpWall;
+    public GameObject tDownWall;
+    public GameObject tRightWall;
+    public GameObject tLeftWall;
+
+    public GameObject horizontalWall;
+    public GameObject verticalWall;
+
+    public GameObject cUpRightWall;
+    public GameObject cUpLeftWall;
+    public GameObject cDownRightWall;
+    public GameObject cDownLeftWall;
+
+    public GameObject eUpWall;
+    public GameObject eDownWall;
+    public GameObject eRightWall;
+    public GameObject eLeftWall;
+
+    public GameObject standaloneWall;
+
+    GameObject assetParent;
+
     [HorizontalLine]
     [Header("Animation")]
     public bool doAnimation;
@@ -56,6 +83,8 @@ public class DungeonGenerator : MonoBehaviour
         yield return StartCoroutine(RemoveCyclicPaths());
 
         yield return StartCoroutine(SpawnDoors());
+
+        yield return StartCoroutine(SpawnAssets());
     }
 
     void Initilize()
@@ -316,6 +345,83 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
+    IEnumerator SpawnAssets()
+    {
+        // create parent
+        assetParent = new GameObject("Dungeon");
+
+        // Map floors and walls
+        HashSet<Vector2Int> floorMap = new();
+        HashSet<Vector2Int> wallMap = new();
+        foreach (RectInt room in graph.GetNodes())
+        {
+            foreach(Vector2Int position in room.allPositionsWithin)
+            {
+                floorMap.Add(position);
+
+                if(position.x == room.x || position.x == room.xMax - 1 || position.y == room.y || position.y == room.yMax - 1)
+                {
+                    // position is on the edge of the room
+                    wallMap.Add(position);
+                }
+            }
+        }
+
+        foreach(Door door in doors)
+        {
+            foreach(Vector2Int position in door.rect.allPositionsWithin)
+            {
+                wallMap.Remove(position);
+            }
+        }
+
+        // spawn floors
+        foreach (Vector2Int position in floorMap)
+        {
+            Instantiate(floor, new Vector3(position.x + .5f, 0, position.y + .5f), quaternion.identity, assetParent.transform);
+
+            yield return new WaitForSeconds(waitTime);
+        }
+
+        // spawn walls
+        foreach(Vector2Int position in wallMap)
+        {
+            // find Neighbooring positions
+            bool up = wallMap.Contains(new Vector2Int(position.x, position.y + 1));
+            bool down = wallMap.Contains(new Vector2Int(position.x, position.y - 1));
+            bool right = wallMap.Contains(new Vector2Int(position.x + 1, position.y));
+            bool left = wallMap.Contains(new Vector2Int(position.x - 1, position.y));
+
+            GameObject prefabToSpawn = null;
+
+            if (up && down && right && left) prefabToSpawn = crossWall;
+
+            else if (up && right && left) prefabToSpawn = tUpWall;
+            else if (down && right && left) prefabToSpawn = tDownWall;
+            else if (right && up && down) prefabToSpawn = tRightWall;
+            else if (left && up && down) prefabToSpawn = tLeftWall;
+
+            else if (right && left) prefabToSpawn = horizontalWall;
+            else if (up && down) prefabToSpawn = verticalWall;
+
+            else if (up && right) prefabToSpawn = cUpRightWall;
+            else if (down && right) prefabToSpawn = cDownRightWall;
+            else if (up && left) prefabToSpawn = cUpLeftWall;
+            else if (down && left) prefabToSpawn = cDownLeftWall;
+
+            else if (up) prefabToSpawn = eUpWall;
+            else if (down) prefabToSpawn = eDownWall;
+            else if (right) prefabToSpawn = eRightWall;
+            else if (left) prefabToSpawn = eLeftWall;
+
+            else prefabToSpawn = standaloneWall;
+
+            Instantiate(prefabToSpawn, new Vector3(position.x, 0, position.y), quaternion.identity, assetParent.transform);
+
+            if (doAnimation) yield return new WaitForSeconds(waitTime);
+        }
+    }
+
     [HorizontalLine]
     [Header("Debugging")]
     public Transform cursor;
@@ -367,6 +473,7 @@ public class DungeonGenerator : MonoBehaviour
         removalFinished = false;
         removedCyclicPaths = false;
         doors.Clear();
+        Destroy(assetParent);
         StartCoroutine(Start());
     }
     [Button] void CheckGraphBFS()
