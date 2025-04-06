@@ -335,6 +335,7 @@ MonoBehaviour:
   size: {x: 50, y: 50}
   maxRoomSize: {x: 10, y: 10}
   generatedRooms: []
+  maxSplitOffset: 0.25
   removePercentage: 50
   useDFS: 0
   doorArea: 4

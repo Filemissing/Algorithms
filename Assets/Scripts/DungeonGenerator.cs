@@ -19,6 +19,7 @@ public class DungeonGenerator : MonoBehaviour
 
     [Header("Generation")]
     public List<RectInt> generatedRooms = new List<RectInt>();
+    public float maxSplitOffset;
     bool generationFinished = false;
 
     [Header("Graph")]
@@ -141,7 +142,7 @@ public class DungeonGenerator : MonoBehaviour
     {
         RectInt[] newRooms = new RectInt[2];
 
-        float splitRatio = 2 + (rng.NextFloat() - .5f) / 2;
+        float splitRatio = 2 + rng.NextFloat(-maxSplitOffset, maxSplitOffset);
 
         RectInt newRoom1 = new RectInt(room.x, room.y, Mathf.RoundToInt((float)(room.width / splitRatio)), room.height);
         RectInt newRoom2 = new RectInt(room.x + newRoom1.width - 1, room.y, room.width - newRoom1.width + 1, room.height);
@@ -155,7 +156,7 @@ public class DungeonGenerator : MonoBehaviour
     {
         RectInt[] newRooms = new RectInt[2];
 
-        float splitRatio = 2 + (rng.NextFloat() - .5f) / 2;
+        float splitRatio = 2 + rng.NextFloat(-maxSplitOffset, maxSplitOffset);
 
         RectInt newRoom1 = new RectInt(room.x, room.y, room.width, Mathf.RoundToInt((float)(room.height / splitRatio)));
         RectInt newRoom2 = new RectInt(room.x, room.y + newRoom1.height - 1, room.width, room.height - newRoom1.height + 1);
