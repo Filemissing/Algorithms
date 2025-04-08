@@ -342,22 +342,19 @@ MonoBehaviour:
   doors: []
   floor: {fileID: 4074472281868185338, guid: 3de645c6de2d2c342b987997d9dbe854, type: 3}
   crossWall: {fileID: 3495114884034316318, guid: d31ff350ff62da24f9af7106a884a8ef, type: 3}
-  tUpWall: {fileID: 6174286636064865313, guid: 8c273a089676b2b4f9caec6c8fd4ce8f, type: 3}
-  tDownWall: {fileID: 6514731542147247052, guid: 35c6a30cba4dff44d861b9e4deb57287, type: 3}
-  tRightWall: {fileID: 6885872506579414824, guid: 3e098cba160944a49b17a27ca970d42b, type: 3}
-  tLeftWall: {fileID: 5597213739501681239, guid: 661c06b76b66056408398149c3709d62, type: 3}
-  horizontalWall: {fileID: 1696027772686227913, guid: 96e8c241faeb3524ab19ca64189283e1, type: 3}
-  verticalWall: {fileID: 6458061925215771140, guid: 6ffa87dc426249946a67f3d357c66758, type: 3}
-  cUpRightWall: {fileID: 7206837896908809870, guid: 7e0e16951acc62f4ea9ddd5bf7631eef, type: 3}
-  cUpLeftWall: {fileID: 3742951053625754820, guid: 2c4819aa63b3ae54fa31bc021df4bb8a, type: 3}
-  cDownRightWall: {fileID: 350375065994580199, guid: 7a41c93881fc80f49aef52887da6821a, type: 3}
-  cDownLeftWall: {fileID: 6492660283520587256, guid: 385ed21059bab5d4cbef84da51d2d70f, type: 3}
-  eUpWall: {fileID: 6458061925215771140, guid: 6ffa87dc426249946a67f3d357c66758, type: 3}
-  eDownWall: {fileID: 6458061925215771140, guid: 6ffa87dc426249946a67f3d357c66758, type: 3}
-  eRightWall: {fileID: 1696027772686227913, guid: 96e8c241faeb3524ab19ca64189283e1, type: 3}
-  eLeftWall: {fileID: 1696027772686227913, guid: 96e8c241faeb3524ab19ca64189283e1, type: 3}
-  standaloneWall: {fileID: 3578675778047730493, guid: 59e0b55216a3c944284b236f10986852, type: 3}
-  doAnimation: 1
+  tWall: {fileID: 6174286636064865313, guid: 8c273a089676b2b4f9caec6c8fd4ce8f, type: 3}
+  straightWall: {fileID: 1696027772686227913, guid: 96e8c241faeb3524ab19ca64189283e1, type: 3}
+  cornerWall: {fileID: 7206837896908809870, guid: 7e0e16951acc62f4ea9ddd5bf7631eef, type: 3}
+  endWall: {fileID: 3578675778047730493, guid: 59e0b55216a3c944284b236f10986852, type: 3}
+  standaloneWall: {fileID: 3578675778047730493, guid: b9b577fa58a9f8848ac14d9c7260b28f, type: 3}
+  maxDecorationsPerRoom: 5
+  decorationObjects:
+  - {fileID: 5306816869560039724, guid: b504896307fef5543a66b84590d00cc5, type: 3}
+  - {fileID: 7250723142667899919, guid: 436509ea7ca4dc6468aa1dea4adcf519, type: 3}
+  - {fileID: 1004340080073827064, guid: 587d27135ff4ca84d98cb64d6cea4790, type: 3}
+  - {fileID: 8247138881074269873, guid: 33be8aba929d95048b755deeafb311e2, type: 3}
+  - {fileID: 4067463207887292001, guid: 7cb2b8d33bce5e54ea523a2d92599a8b, type: 3}
+  doAnimation: 0
   waitTime: 0
   cursor: {fileID: 103741541}
 --- !u!1 &410087039

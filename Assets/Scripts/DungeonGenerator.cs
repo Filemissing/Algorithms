@@ -44,32 +44,46 @@ public class DungeonGenerator : MonoBehaviour
 
     public GameObject crossWall;
 
-    public GameObject tUpWall;
-    public GameObject tDownWall;
-    public GameObject tRightWall;
-    public GameObject tLeftWall;
+    public GameObject tWall;
 
-    public GameObject horizontalWall;
-    public GameObject verticalWall;
+    public GameObject straightWall;
 
-    public GameObject cUpRightWall;
-    public GameObject cUpLeftWall;
-    public GameObject cDownRightWall;
-    public GameObject cDownLeftWall;
+    public GameObject cornerWall;
 
-    public GameObject eUpWall;
-    public GameObject eDownWall;
-    public GameObject eRightWall;
-    public GameObject eLeftWall;
+    public GameObject endWall;
 
     public GameObject standaloneWall;
 
     GameObject assetParent;
 
+    [Header("Decorations")]
+    public int maxDecorationsPerRoom;
+    public GameObject[] decorationObjects;
+
+    [HorizontalLine]
+    [Header("Navigation")]
+    public Graph<Vector2Int> navigationGraph;
+
     [HorizontalLine]
     [Header("Animation")]
     public bool doAnimation;
     public float waitTime;
+
+    Vector2Int[] orthogonalDirections = new Vector2Int[4]
+    {
+        new Vector2Int(1, 0),
+        new Vector2Int(-1, 0),
+        new Vector2Int(0, 1),
+        new Vector2Int(0, -1)
+    };
+
+    Vector2Int[] diagonalDirections = new Vector2Int[4]
+    {
+        new Vector2Int(1, 1),
+        new Vector2Int(-1, 1),
+        new Vector2Int(1, -1),
+        new Vector2Int(-1, -1)
+    };
 
     IEnumerator Start()
     {
@@ -352,74 +366,237 @@ public class DungeonGenerator : MonoBehaviour
         assetParent = new GameObject("Dungeon");
 
         // Map floors and walls
-        HashSet<Vector2Int> floorMap = new();
-        HashSet<Vector2Int> wallMap = new();
+        Dictionary<Vector2Int, Transform> floorMap = new();
+        Dictionary<Vector2Int, Transform> wallMap = new();
+        Dictionary<Vector2Int, Transform> decorationMap = new();
+        int roomNumber = 0;
         foreach (RectInt room in graph.GetNodes())
         {
+            // set up parents
+            GameObject roomParent = new GameObject($"Room {roomNumber}");
+            roomParent.transform.parent = assetParent.transform;
+
+            GameObject floorParent = new GameObject("Floors");
+            floorParent.transform.parent = roomParent.transform;
+
+            GameObject wallParent = new GameObject("Walls");
+            wallParent.transform.parent = roomParent.transform;
+
             foreach(Vector2Int position in room.allPositionsWithin)
             {
-                floorMap.Add(position);
+                if (!floorMap.ContainsKey(position)) floorMap.Add(position, floorParent.transform);
 
                 if(position.x == room.x || position.x == room.xMax - 1 || position.y == room.y || position.y == room.yMax - 1)
                 {
                     // position is on the edge of the room
-                    wallMap.Add(position);
+                    if (!wallMap.ContainsKey(position)) wallMap.Add(position, wallParent.transform);
                 }
             }
+
+            roomNumber++;
         }
 
-        foreach(Door door in doors)
+        // map decorations
+        roomNumber = 0;
+        foreach (RectInt room in graph.GetNodes())
+        {
+            GameObject roomParent = GameObject.Find($"Room {roomNumber}"); // find the roomparent created earlier
+
+            GameObject decorationParent = new GameObject("Decorations");
+            decorationParent.transform.parent = roomParent.transform;
+
+            List<Vector2Int> possiblePositions = new();
+
+            foreach (Vector2Int position in room.allPositionsWithin)
+            {
+                if (!(position.x == room.x || position.x == room.xMax - 1 || position.y == room.y || position.y == room.yMax - 1)) // wall positions, avoid spawning inside walls
+                {
+                    if (position.x == room.x + 1 || position.x == room.xMax - 2 || position.y == room.y + 1 || position.y == room.yMax - 2) // 1 away from walls
+                    {
+                        possiblePositions.Add(position);
+                    }
+                }
+            }
+
+            int decorationAmount = rng.NextInt(1, maxDecorationsPerRoom);
+
+            for (int i = 0; i < decorationAmount; i++)
+            {
+                int randomIndex = rng.NextInt(0, possiblePositions.Count);
+
+                decorationMap.Add(possiblePositions[randomIndex], decorationParent.transform);
+
+                possiblePositions.RemoveAt(randomIndex);
+            }
+
+            roomNumber++;
+        }
+
+        foreach (Door door in doors)
         {
             foreach(Vector2Int position in door.rect.allPositionsWithin)
             {
                 wallMap.Remove(position);
+
+                // remove possible blocking decorations
+                foreach(Vector2Int direction in orthogonalDirections)
+                {
+                    if (decorationMap.ContainsKey(position + direction)) decorationMap.Remove(position + direction);
+                }
             }
         }
 
-        // spawn floors
-        foreach (Vector2Int position in floorMap)
+        // spawn decorations
+        foreach (var kvp in decorationMap)
         {
-            Instantiate(floor, new Vector3(position.x + .5f, 0, position.y + .5f), quaternion.identity, assetParent.transform);
+            Vector2Int position = kvp.Key;
+            Vector3 rotation = Vector3.up * rng.NextFloat(0, 360);
 
-            yield return new WaitForSeconds(waitTime);
+            GameObject randomDecoration = decorationObjects[rng.NextInt(0, decorationObjects.Length)];
+            Instantiate(randomDecoration, new Vector3(position.x + .5f, 0, position.y + .5f), Quaternion.Euler(rotation), kvp.Value);
+
+            if (doAnimation) yield return new WaitForSeconds(waitTime);
+        }
+
+        // spawn floors
+        foreach (var kvp in floorMap)
+        {
+            Vector2Int position = kvp.Key;
+            Instantiate(floor, new Vector3(position.x + .5f, 0, position.y + .5f), quaternion.identity, kvp.Value);
+
+            if(doAnimation) yield return new WaitForSeconds(waitTime);
         }
 
         // spawn walls
-        foreach(Vector2Int position in wallMap)
+        foreach(var kvp in wallMap)
         {
+            Vector2Int position = kvp.Key;
+
             // find Neighbooring positions
-            bool up = wallMap.Contains(new Vector2Int(position.x, position.y + 1));
-            bool down = wallMap.Contains(new Vector2Int(position.x, position.y - 1));
-            bool right = wallMap.Contains(new Vector2Int(position.x + 1, position.y));
-            bool left = wallMap.Contains(new Vector2Int(position.x - 1, position.y));
+            bool up = wallMap.ContainsKey(new Vector2Int(position.x, position.y + 1));
+            bool down = wallMap.ContainsKey(new Vector2Int(position.x, position.y - 1));
+            bool right = wallMap.ContainsKey(new Vector2Int(position.x + 1, position.y));
+            bool left = wallMap.ContainsKey(new Vector2Int(position.x - 1, position.y));
 
             GameObject prefabToSpawn = null;
+            Vector3 rotation = default;
 
-            if (up && down && right && left) prefabToSpawn = crossWall;
+            // Cross wall
+            if (up && down && right && left)
+            {
+                prefabToSpawn = crossWall;
+            }
 
-            else if (up && right && left) prefabToSpawn = tUpWall;
-            else if (down && right && left) prefabToSpawn = tDownWall;
-            else if (right && up && down) prefabToSpawn = tRightWall;
-            else if (left && up && down) prefabToSpawn = tLeftWall;
+            // T junctions
+            else if (up && right && left)
+            {
+                prefabToSpawn = tWall;
+            }
+            else if (down && right && left)
+            {
+                prefabToSpawn = tWall;
+                rotation = new Vector3(0, 180, 0);
+            }
+            else if (right && up && down)
+            {
+                prefabToSpawn = tWall;
+                rotation = new Vector3(0, 90, 0);
+            }
+            else if (left && up && down)
+            {
+                prefabToSpawn = tWall;
+                rotation = new Vector3(0, -90, 0);
+            }
 
-            else if (right && left) prefabToSpawn = horizontalWall;
-            else if (up && down) prefabToSpawn = verticalWall;
+            // straight walls
+            else if (right && left)
+            {
+                prefabToSpawn = straightWall;
+            }
+            else if (up && down)
+            {
+                prefabToSpawn = straightWall;
+                rotation = new Vector3(0, 90, 0);
+            }
 
-            else if (up && right) prefabToSpawn = cUpRightWall;
-            else if (down && right) prefabToSpawn = cDownRightWall;
-            else if (up && left) prefabToSpawn = cUpLeftWall;
-            else if (down && left) prefabToSpawn = cDownLeftWall;
+            // corner walls
+            else if (up && right)
+            {
+                prefabToSpawn = cornerWall;
+            }
+            else if (down && right)
+            {
+                prefabToSpawn = cornerWall;
+                rotation = new Vector3(0, 90, 0);
+            }
+            else if (up && left)
+            {
+                prefabToSpawn = cornerWall;
+                rotation = new Vector3(0, -90, 0);
+            }
+            else if (down && left)
+            {
+                prefabToSpawn = cornerWall;
+                rotation = new Vector3(0, 180, 0);
+            }
 
-            else if (up) prefabToSpawn = eUpWall;
-            else if (down) prefabToSpawn = eDownWall;
-            else if (right) prefabToSpawn = eRightWall;
-            else if (left) prefabToSpawn = eLeftWall;
+            else if (up)
+            {
+                prefabToSpawn = endWall;
+            }
+            else if (down)
+            {
+                prefabToSpawn = endWall;
+                rotation = new Vector3(0, 180, 0);
+            }
+            else if (right)
+            {
+                prefabToSpawn = endWall;
+                rotation = new Vector3(0, 90, 0);
+            }
+            else if (left)
+            {
+                prefabToSpawn = endWall;
+                rotation = new Vector3(0, -90, 0);
+            }
 
             else prefabToSpawn = standaloneWall;
 
-            Instantiate(prefabToSpawn, new Vector3(position.x, 0, position.y), quaternion.identity, assetParent.transform);
+            Instantiate(prefabToSpawn, new Vector3(position.x + .5f, 0, position.y + .5f), Quaternion.Euler(rotation), kvp.Value);
 
             if (doAnimation) yield return new WaitForSeconds(waitTime);
+        }
+    }
+
+    void CreateNavigationGraph()
+    {
+        foreach(RectInt room in graph.GetNodes())
+        {
+            foreach(Vector2Int position in room.allPositionsWithin)
+            {
+                navigationGraph.AddNode(position);
+            }
+        }
+
+        Vector2Int[] positions = navigationGraph.GetNodes().ToArray();
+
+        foreach (Vector2Int position in positions)
+        {
+            foreach(Vector2Int direction in orthogonalDirections)
+            {
+                if (positions.Contains(position + direction))
+                {
+                    navigationGraph.AddEdge(position, position + direction);
+                }
+            }
+            
+            foreach(Vector2Int direction in diagonalDirections)
+            {
+                if (positions.Contains(position + direction))
+                {
+                    navigationGraph.AddEdge(position, position + direction);
+                }
+            }
         }
     }
 
