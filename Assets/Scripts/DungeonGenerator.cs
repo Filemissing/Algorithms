@@ -59,10 +59,11 @@ public class DungeonGenerator : MonoBehaviour
     [Header("Decorations")]
     public int maxDecorationsPerRoom;
     public GameObject[] decorationObjects;
+    List<Vector3> spawnedDecorationPositions = new();
 
     [HorizontalLine]
     [Header("Navigation")]
-    public Graph<Vector2Int> navigationGraph;
+    public Graph<Vector3> navigationGraph = new();
 
     [HorizontalLine]
     [Header("Animation")]
@@ -198,9 +199,9 @@ public class DungeonGenerator : MonoBehaviour
                 }
 
                 AlgorithmsUtils.DebugRectInt(room1, Color.cyan, waitTime, false, 1);
-                AlgorithmsUtils.DebugRectInt(room2, Color.cyan, waitTime, false, 1);
+                //AlgorithmsUtils.DebugRectInt(room2, Color.cyan, waitTime, false, 1);
 
-                if (doAnimation) yield return new WaitForSeconds(waitTime);
+                //if (doAnimation) yield return new WaitForSeconds(waitTime);
             }
             if (doAnimation) yield return new WaitForSeconds(waitTime);
         }
@@ -432,6 +433,7 @@ public class DungeonGenerator : MonoBehaviour
             roomNumber++;
         }
 
+        // clear door positions
         foreach (Door door in doors)
         {
             foreach(Vector2Int position in door.rect.allPositionsWithin)
@@ -446,29 +448,43 @@ public class DungeonGenerator : MonoBehaviour
             }
         }
 
-        // spawn decorations
-        foreach (var kvp in decorationMap)
-        {
-            Vector2Int position = kvp.Key;
-            Vector3 rotation = Vector3.up * rng.NextFloat(0, 360);
+        // spawn floors
+        Queue<Vector2Int> queue = new();
+        HashSet<Vector2Int> discovered = new();
 
-            GameObject randomDecoration = decorationObjects[rng.NextInt(0, decorationObjects.Length)];
-            Instantiate(randomDecoration, new Vector3(position.x + .5f, 0, position.y + .5f), Quaternion.Euler(rotation), kvp.Value);
+        Vector2Int startPosition = Vector2Int.RoundToInt(graph.GetNodes()[0].center);
+        queue.Enqueue(startPosition);
+        discovered.Add(startPosition);
+
+        while (queue.Count > 0)
+        {
+            Vector2Int position = queue.Dequeue();
+
+            Instantiate(floor, new Vector3(position.x + .5f, 0, position.y + .5f), Quaternion.identity, floorMap[position]);
+
+            List<Vector2Int> neighbours = new();
+
+            foreach (Vector2Int direction in orthogonalDirections)
+            {
+                Vector2Int newPos = position + direction;
+
+                if (floorMap.ContainsKey(newPos)) neighbours.Add(newPos);
+            }
+
+            foreach (Vector2Int neighBouringPosition in neighbours)
+            {
+                if (!discovered.Contains(neighBouringPosition))
+                {
+                    queue.Enqueue(neighBouringPosition);
+                    discovered.Add(neighBouringPosition);
+                }
+            }
 
             if (doAnimation) yield return new WaitForSeconds(waitTime);
         }
 
-        // spawn floors
-        foreach (var kvp in floorMap)
-        {
-            Vector2Int position = kvp.Key;
-            Instantiate(floor, new Vector3(position.x + .5f, 0, position.y + .5f), quaternion.identity, kvp.Value);
-
-            if(doAnimation) yield return new WaitForSeconds(waitTime);
-        }
-
         // spawn walls
-        foreach(var kvp in wallMap)
+        foreach (var kvp in wallMap)
         {
             Vector2Int position = kvp.Key;
 
@@ -566,36 +582,95 @@ public class DungeonGenerator : MonoBehaviour
 
             if (doAnimation) yield return new WaitForSeconds(waitTime);
         }
+
+        // spawn decorations
+        foreach (var kvp in decorationMap)
+        {
+            Vector2Int position = kvp.Key;
+            Vector3 adjustedPosition = new Vector3(position.x + .5f, 0, position.y + .5f);
+            Vector3 rotation = Vector3.up * rng.NextFloat(0, 360);
+
+            GameObject randomDecoration = decorationObjects[rng.NextInt(0, decorationObjects.Length)];
+            Instantiate(randomDecoration, adjustedPosition, Quaternion.Euler(rotation), kvp.Value);
+
+            spawnedDecorationPositions.Add(adjustedPosition);
+
+            if (doAnimation) yield return new WaitForSeconds(waitTime);
+        }
     }
 
-    void CreateNavigationGraph()
+    [Button] void CreateNavigationGraph()
     {
         foreach(RectInt room in graph.GetNodes())
         {
             foreach(Vector2Int position in room.allPositionsWithin)
             {
-                navigationGraph.AddNode(position);
+                Vector3 adjustedPosition = new Vector3(position.x + .5f, 0, position.y + .5f);
+
+                if (spawnedDecorationPositions.Contains(adjustedPosition)) continue;
+
+                if (!(position.x == room.x || position.x == room.xMax - 1 || position.y == room.y || position.y == room.yMax - 1))
+                {
+                    navigationGraph.AddNode(new Vector3(position.x + .5f, 0, position.y + .5f));
+                }
             }
         }
 
-        Vector2Int[] positions = navigationGraph.GetNodes().ToArray();
+        Vector3[] positions = navigationGraph.GetNodes().ToArray();
 
-        foreach (Vector2Int position in positions)
+        foreach (Vector3 position in positions)
         {
             foreach(Vector2Int direction in orthogonalDirections)
             {
-                if (positions.Contains(position + direction))
+                if (positions.Contains(position + new Vector3(direction.x, 0, direction.y)))
                 {
-                    navigationGraph.AddEdge(position, position + direction);
+                    navigationGraph.AddEdge(position, position + new Vector3(direction.x, 0, direction.y));
                 }
             }
             
             foreach(Vector2Int direction in diagonalDirections)
             {
-                if (positions.Contains(position + direction))
+                if (positions.Contains(position + new Vector3(direction.x, 0, direction.y)))
                 {
-                    navigationGraph.AddEdge(position, position + direction);
+                    navigationGraph.AddEdge(position, position + new Vector3(direction.x, 0, direction.y));
                 }
+            }
+        }
+
+        foreach (Door door in doors)
+        {
+            // add door positions
+            foreach (Vector2Int position in door.rect.allPositionsWithin)
+            {
+                Vector3 adjustedPosition = new Vector3(position.x + .5f, 0, position.y + .5f);
+
+                navigationGraph.AddNode(adjustedPosition);
+            }
+        }
+
+        foreach(Door door in doors)
+        {
+            // connect door positions to other nodes
+            foreach (Vector2Int position in door.rect.allPositionsWithin)
+            {
+                Vector3 adjustedPosition = new Vector3(position.x + .5f, 0, position.y + .5f);
+
+                foreach (Vector2Int direction in orthogonalDirections)
+                {
+                    if (positions.Contains(adjustedPosition + new Vector3(direction.x, 0, direction.y)))
+                    {
+                        navigationGraph.AddEdge(adjustedPosition, adjustedPosition + new Vector3(direction.x, 0, direction.y));
+                    }
+                }
+
+                // don't include diagonal connections for doors in order to stay clear of walls
+                //foreach (Vector2Int direction in diagonalDirections)
+                //{
+                //    if (positions.Contains(adjustedPosition + new Vector3(direction.x, 0, direction.y)))
+                //    {
+                //        navigationGraph.AddEdge(adjustedPosition, adjustedPosition + new Vector3(direction.x, 0, direction.y));
+                //    }
+                //}
             }
         }
     }
@@ -603,16 +678,29 @@ public class DungeonGenerator : MonoBehaviour
     [HorizontalLine]
     [Header("Debugging")]
     public Transform cursor;
+    public bool showNavigationGraph;
     private void Update()
     {
         DrawRooms();
-        if(!removalFinished || removedCyclicPaths)
+        if (!removalFinished || removedCyclicPaths)
             DrawGraph(graph, Time.deltaTime);
         DrawDoors();
 
         if (Input.GetMouseButtonDown(0))
         {
             Debug.Log(FindRoomAtPosition(cursor.position));
+        }
+
+        if (showNavigationGraph)
+        {
+            foreach (Vector3 node in navigationGraph.GetNodes())
+            {
+                DebugExtension.DebugCircle(node, Vector3.up, Color.magenta, .2f);
+                foreach (Vector3 connection in navigationGraph.GetNeighbors(node))
+                {
+                    Debug.DrawLine(node, connection, Color.magenta);
+                }
+            } 
         }
     }
     void DrawRooms()
@@ -652,6 +740,8 @@ public class DungeonGenerator : MonoBehaviour
         removedCyclicPaths = false;
         doors.Clear();
         Destroy(assetParent);
+        spawnedDecorationPositions.Clear();
+        navigationGraph.Clear();
         StartCoroutine(Start());
     }
     [Button] void CheckGraphBFS()
