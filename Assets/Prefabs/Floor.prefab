@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5175158695599479973}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Floor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -43,6 +43,10 @@ PrefabInstance:
     - target: {fileID: 688036264644456354, guid: c61063d231c1a2d4bb1dd06a0a00891a, type: 3}
       propertyPath: m_Name
       value: _FloorRock
+      objectReference: {fileID: 0}
+    - target: {fileID: 688036264644456354, guid: c61063d231c1a2d4bb1dd06a0a00891a, type: 3}
+      propertyPath: m_Layer
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 1222176508028131644, guid: c61063d231c1a2d4bb1dd06a0a00891a, type: 3}
       propertyPath: m_LocalScale.x
@@ -100,6 +104,10 @@ PrefabInstance:
       propertyPath: m_ConstrainProportionsScale
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 1440626344578701197, guid: c61063d231c1a2d4bb1dd06a0a00891a, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 13400000, guid: 0407d11c4cf30d7489cf326e7891d33a, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

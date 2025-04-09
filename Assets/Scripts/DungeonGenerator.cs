@@ -7,15 +7,21 @@ using System.Collections;
 using System;
 using System.Linq;
 using UnityEngine.UIElements;
+using UnityEngine.Events;
 
 public class DungeonGenerator : MonoBehaviour
 {
+    public static DungeonGenerator instance;
+    private void Awake() => instance = this;
+
     [Header("General")]
     public int seed;
     Random rng;
 
     public Vector2Int size = new Vector2Int(100, 50);
     public Vector2Int maxRoomSize = new Vector2Int(10, 10);
+
+    public UnityEvent OnGenerationDone;
 
     [Header("Generation")]
     public List<RectInt> generatedRooms = new List<RectInt>();
@@ -101,6 +107,10 @@ public class DungeonGenerator : MonoBehaviour
         yield return StartCoroutine(SpawnDoors());
 
         yield return StartCoroutine(SpawnAssets());
+
+        CreateNavigationGraph();
+
+        OnGenerationDone.Invoke();
     }
 
     void Initilize()
@@ -599,8 +609,9 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
-    [Button] void CreateNavigationGraph()
+    void CreateNavigationGraph()
     {
+        // map all detailed positions
         foreach(RectInt room in graph.GetNodes())
         {
             foreach(Vector2Int position in room.allPositionsWithin)
@@ -618,6 +629,7 @@ public class DungeonGenerator : MonoBehaviour
 
         Vector3[] positions = navigationGraph.GetNodes().ToArray();
 
+        // connect all neighbours
         foreach (Vector3 position in positions)
         {
             foreach(Vector2Int direction in orthogonalDirections)
@@ -628,13 +640,13 @@ public class DungeonGenerator : MonoBehaviour
                 }
             }
             
-            foreach(Vector2Int direction in diagonalDirections)
-            {
-                if (positions.Contains(position + new Vector3(direction.x, 0, direction.y)))
-                {
-                    navigationGraph.AddEdge(position, position + new Vector3(direction.x, 0, direction.y));
-                }
-            }
+            //foreach(Vector2Int direction in diagonalDirections)
+            //{
+            //    if (positions.Contains(position + new Vector3(direction.x, 0, direction.y)))
+            //    {
+            //        navigationGraph.AddEdge(position, position + new Vector3(direction.x, 0, direction.y));
+            //    }
+            //}
         }
 
         foreach (Door door in doors)
@@ -686,7 +698,7 @@ public class DungeonGenerator : MonoBehaviour
             DrawGraph(graph, Time.deltaTime);
         DrawDoors();
 
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(1))
         {
             Debug.Log(FindRoomAtPosition(cursor.position));
         }
