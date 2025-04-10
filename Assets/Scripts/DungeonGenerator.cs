@@ -691,12 +691,16 @@ public class DungeonGenerator : MonoBehaviour
     [Header("Debugging")]
     public Transform cursor;
     public bool showNavigationGraph;
+    public bool showRooms;
     private void Update()
     {
-        DrawRooms();
-        if (!removalFinished || removedCyclicPaths)
-            DrawGraph(graph, Time.deltaTime);
-        DrawDoors();
+        if (showRooms)
+        {
+            DrawRooms();
+            if (!removalFinished || removedCyclicPaths)
+                DrawGraph(graph, Time.deltaTime);
+            DrawDoors(); 
+        }
 
         if (Input.GetMouseButtonDown(1))
         {

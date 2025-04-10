@@ -38,10 +38,6 @@ public class PlayerController : MonoBehaviour
                 if (transform.position != targetPosition)
                 {
                     Vector3[] path = FindShortestPath(targetPosition);
-                    for(int i = 0; i < path.Length - 1; i++)
-                    {
-                        DebugExtension.DebugArrow(path[i], path[i + 1] - path[i], Color.red, 10);
-                    }
                     currentPath = path;
                     currentStep = 0;
                 }
@@ -63,6 +59,13 @@ public class PlayerController : MonoBehaviour
         else
         {
             rb.MovePosition(transform.position + moveDir * speed);
+        }
+
+
+        DebugExtension.DebugArrow(transform.position, currentPath[0] - transform.position, Color.red);
+        for (int i = currentStep; i < currentPath.Length - 2; i++)
+        {
+            DebugExtension.DebugArrow(currentPath[i], currentPath[i + 1] - currentPath[i], Color.red);
         }
     }
 

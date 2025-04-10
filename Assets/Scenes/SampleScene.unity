@@ -369,10 +369,11 @@ MonoBehaviour:
   - {fileID: 1004340080073827064, guid: 587d27135ff4ca84d98cb64d6cea4790, type: 3}
   - {fileID: 8247138881074269873, guid: 33be8aba929d95048b755deeafb311e2, type: 3}
   - {fileID: 4067463207887292001, guid: 7cb2b8d33bce5e54ea523a2d92599a8b, type: 3}
-  doAnimation: 0
+  doAnimation: 1
   waitTime: 0
   cursor: {fileID: 103741541}
   showNavigationGraph: 0
+  showRooms: 1
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
