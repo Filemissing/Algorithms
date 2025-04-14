@@ -10,6 +10,8 @@ using UnityEngine.UIElements;
 using UnityEngine.Events;
 using UnityEngine.Analytics;
 using NaughtyAttributes.Test;
+using UnityEngine.AI;
+using Unity.AI.Navigation;
 
 public class DungeonGenerator : MonoBehaviour
 {
@@ -66,6 +68,8 @@ public class DungeonGenerator : MonoBehaviour
 
     [HorizontalLine]
     [Header("Navigation")]
+    public bool useNavMesh = false;
+    public NavMeshSurface navmesh;
     public Graph<Vector3> navigationGraph = new();
 
     [HorizontalLine]
@@ -105,7 +109,8 @@ public class DungeonGenerator : MonoBehaviour
 
         yield return StartCoroutine(SpawnAssets());
 
-        CreateNavigationGraph();
+        if(useNavMesh) navmesh.BuildNavMesh();
+        else yield return StartCoroutine(CreateNavigationGraph());
 
         OnGenerationDone.Invoke();
     }
@@ -474,6 +479,7 @@ public class DungeonGenerator : MonoBehaviour
         queue.Enqueue(startPosition);
         discovered.Add(startPosition);
 
+        // spawn floors with flood fill
         while (queue.Count > 0)
         {
             Vector2Int position = queue.Dequeue();
@@ -617,7 +623,7 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
-    void CreateNavigationGraph()
+    IEnumerator CreateNavigationGraph()
     {
         // map all detailed positions
         foreach(RectInt room in graph.GetNodes())
@@ -632,6 +638,8 @@ public class DungeonGenerator : MonoBehaviour
                 {
                     navigationGraph.AddNode(new Vector3(position.x + .5f, 0, position.y + .5f));
                 }
+
+                if(doAnimation) yield return new WaitForSeconds(waitTime);
             }
         }
 
@@ -647,7 +655,7 @@ public class DungeonGenerator : MonoBehaviour
                     navigationGraph.AddEdge(position, position + new Vector3(direction.x, 0, direction.y));
                 }
             }
-            
+
             //foreach(Vector2Int direction in diagonalDirections)
             //{
             //    if (positions.Contains(position + new Vector3(direction.x, 0, direction.y)))
@@ -655,6 +663,8 @@ public class DungeonGenerator : MonoBehaviour
             //        navigationGraph.AddEdge(position, position + new Vector3(direction.x, 0, direction.y));
             //    }
             //}
+
+            if (doAnimation) yield return new WaitForSeconds(waitTime);
         }
 
         foreach (Door door in doors)
@@ -665,6 +675,8 @@ public class DungeonGenerator : MonoBehaviour
                 Vector3 adjustedPosition = new Vector3(position.x + .5f, 0, position.y + .5f);
 
                 navigationGraph.AddNode(adjustedPosition);
+
+                if (doAnimation) yield return new WaitForSeconds(waitTime);
             }
         }
 
@@ -691,6 +703,8 @@ public class DungeonGenerator : MonoBehaviour
                 //        navigationGraph.AddEdge(adjustedPosition, adjustedPosition + new Vector3(direction.x, 0, direction.y));
                 //    }
                 //}
+
+                if(doAnimation) yield return new WaitForSeconds(waitTime);
             }
         }
     }

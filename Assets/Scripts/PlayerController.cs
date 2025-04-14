@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
@@ -14,6 +15,7 @@ public class PlayerController : MonoBehaviour
     Vector3[] currentPath;
     int currentStep;
     Rigidbody rb;
+    public NavMeshAgent agent;
     public void Enable()
     {
         rb = GetComponent<Rigidbody>();
@@ -22,11 +24,14 @@ public class PlayerController : MonoBehaviour
         targetPosition = transform.position;
         rb.isKinematic = false;
         enabled = true;
+        agent = gameObject.AddComponent<NavMeshAgent>();
     }
 
     void Update()
     {
         if (!enabled) return;
+
+        rb.isKinematic = DungeonGenerator.instance.useNavMesh ? false : true;
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -35,11 +40,18 @@ public class PlayerController : MonoBehaviour
                 Debug.Log($"hit {hit.point}");
                 targetPosition = hit.point;
 
-                if (transform.position != targetPosition)
+                if (DungeonGenerator.instance.useNavMesh)
                 {
-                    Vector3[] path = FindShortestPath(targetPosition);
-                    currentPath = path;
-                    currentStep = 0;
+                    agent.SetDestination(targetPosition);
+                }
+                else
+                {
+                    if (transform.position != targetPosition)
+                    {
+                        Vector3[] path = FindShortestPath(targetPosition);
+                        currentPath = path;
+                        currentStep = 0;
+                    }
                 }
             }
         }
