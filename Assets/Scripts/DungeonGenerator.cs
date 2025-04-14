@@ -8,6 +8,8 @@ using System;
 using System.Linq;
 using UnityEngine.UIElements;
 using UnityEngine.Events;
+using UnityEngine.Analytics;
+using NaughtyAttributes.Test;
 
 public class DungeonGenerator : MonoBehaviour
 {
@@ -43,21 +45,16 @@ public class DungeonGenerator : MonoBehaviour
 
     [Header("Doors")]
     public int doorArea;
+    public float hallwayChance;
     public List<Door> doors = new();
 
     [Header("Assets")]
     public GameObject floor;
-
     public GameObject crossWall;
-
     public GameObject tWall;
-
     public GameObject straightWall;
-
     public GameObject cornerWall;
-
     public GameObject endWall;
-
     public GameObject standaloneWall;
 
     GameObject assetParent;
@@ -347,22 +344,33 @@ public class DungeonGenerator : MonoBehaviour
                 newDoor.room1 = node;
                 newDoor.room2 = connectedNode;
 
-                RectInt intersection = AlgorithmsUtils.Intersect(node, connectedNode);
-
-                newDoor.rect = intersection.height == 1 ? // check orientation
-                    new RectInt(rng.NextInt(intersection.xMin + 1, intersection.xMax - 3), intersection.y, 2, 1) // door is horizontal
-                    :
-                    new RectInt(intersection.x, rng.NextInt(intersection.yMin + 1, intersection.yMax - 3), 1, 2); // door is vertical
-
                 bool isDuplicate = doors.Any(door =>
                     (newDoor.room1 == door.room1 && newDoor.room2 == door.room2)
                     ||
                     (newDoor.room1 == door.room2 && newDoor.room2 == door.room1));
 
-                if (!isDuplicate)
+                if (isDuplicate) continue;
+
+                RectInt intersection = AlgorithmsUtils.Intersect(node, connectedNode);
+
+                bool isHallwayDoor = rng.NextFloat() <= hallwayChance;
+
+                if (isHallwayDoor)
                 {
-                    doors.Add(newDoor);
+                    newDoor.rect = intersection.height == 1 ? // check orientation
+                        new RectInt(intersection.x + 1, intersection.y, intersection.width - 2, 1) // horizontal
+                        :
+                        new RectInt(intersection.x, intersection.y + 1, 1, intersection.height - 2); // vertical
                 }
+                else
+                {
+                    newDoor.rect = intersection.height == 1 ? // check orientation
+                        new RectInt(rng.NextInt(intersection.xMin + 1, intersection.xMax - 3), intersection.y, 2, 1) // door is horizontal
+                        :
+                        new RectInt(intersection.x, rng.NextInt(intersection.yMin + 1, intersection.yMax - 3), 1, 2); // door is vertical 
+                }
+
+                doors.Add(newDoor);
 
                 if (doAnimation) yield return new WaitForSeconds(waitTime);
             }
@@ -694,6 +702,8 @@ public class DungeonGenerator : MonoBehaviour
     public bool showRooms;
     private void Update()
     {
+        ToggleBools();
+
         if (showRooms)
         {
             DrawRooms();
@@ -718,6 +728,11 @@ public class DungeonGenerator : MonoBehaviour
                 }
             } 
         }
+    }
+    void ToggleBools()
+    {
+        if (Input.GetKeyDown(KeyCode.R)) showRooms = !showRooms;
+        if (Input.GetKeyDown(KeyCode.N)) showNavigationGraph = !showNavigationGraph;
     }
     void DrawRooms()
     {

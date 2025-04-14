@@ -61,11 +61,13 @@ public class PlayerController : MonoBehaviour
             rb.MovePosition(transform.position + moveDir * speed);
         }
 
-
-        DebugExtension.DebugArrow(transform.position, currentPath[0] - transform.position, Color.red);
-        for (int i = currentStep; i < currentPath.Length - 2; i++)
+        if (currentStep < currentPath.Length - 1)
         {
-            DebugExtension.DebugArrow(currentPath[i], currentPath[i + 1] - currentPath[i], Color.red);
+            DebugExtension.DebugArrow(transform.position, currentPath[currentStep] - transform.position, Color.red);
+            for (int i = currentStep; i < currentPath.Length - 2; i++)
+            {
+                DebugExtension.DebugArrow(currentPath[i], currentPath[i + 1] - currentPath[i], Color.red);
+            } 
         }
     }
 
