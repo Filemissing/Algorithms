@@ -31,7 +31,7 @@ public class PlayerController : MonoBehaviour
     {
         if (!enabled) return;
 
-        rb.isKinematic = DungeonGenerator.instance.useNavMesh ? false : true;
+        rb.isKinematic = !DungeonGenerator.instance.useNavMesh;
 
         if (Input.GetMouseButtonDown(0))
         {
