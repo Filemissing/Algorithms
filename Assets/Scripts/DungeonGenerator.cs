@@ -8,9 +8,6 @@ using System;
 using System.Linq;
 using UnityEngine.UIElements;
 using UnityEngine.Events;
-using UnityEngine.Analytics;
-using NaughtyAttributes.Test;
-using UnityEngine.AI;
 using Unity.AI.Navigation;
 
 public class DungeonGenerator : MonoBehaviour
@@ -747,6 +744,7 @@ public class DungeonGenerator : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.R)) showRooms = !showRooms;
         if (Input.GetKeyDown(KeyCode.N)) showNavigationGraph = !showNavigationGraph;
+        if (Input.GetKeyDown(KeyCode.A)) doAnimation = !doAnimation;
     }
     void DrawRooms()
     {
@@ -773,6 +771,7 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
+    public UnityEvent onRedraw;
     [Button] void Redraw()
     {
         StopAllCoroutines();
@@ -787,6 +786,8 @@ public class DungeonGenerator : MonoBehaviour
         Destroy(assetParent);
         spawnedDecorationPositions.Clear();
         navigationGraph.Clear();
+        onRedraw.Invoke();
+
         StartCoroutine(Start());
     }
     [Button] void CheckGraphBFS()

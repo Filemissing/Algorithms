@@ -27,6 +27,17 @@ public class PlayerController : MonoBehaviour
         agent = gameObject.AddComponent<NavMeshAgent>();
     }
 
+    public void Disable()
+    {
+        transform.position = Vector3.zero;
+        targetPosition = Vector3.zero;
+        currentPath = null;
+        currentStep = 0;
+        rb.isKinematic = true;
+        enabled = false;
+        Destroy(agent);
+    }
+
     void Update()
     {
         if (!enabled) return;

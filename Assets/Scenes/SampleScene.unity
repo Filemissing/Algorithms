@@ -351,7 +351,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d68ad47f4c0f9c44fabcd9bfaa31528c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  seed: 1
+  seed: 5
   size: {x: 50, y: 50}
   maxRoomSize: {x: 10, y: 10}
   OnGenerationDone:
@@ -402,13 +402,40 @@ MonoBehaviour:
   - {fileID: 1004340080073827064, guid: 587d27135ff4ca84d98cb64d6cea4790, type: 3}
   - {fileID: 8247138881074269873, guid: 33be8aba929d95048b755deeafb311e2, type: 3}
   - {fileID: 4067463207887292001, guid: 7cb2b8d33bce5e54ea523a2d92599a8b, type: 3}
-  useNavMesh: 1
+  useNavMesh: 0
   navmesh: {fileID: 345147692}
   doAnimation: 1
   waitTime: 0
   cursor: {fileID: 103741541}
   showNavigationGraph: 0
   showRooms: 1
+  onRedraw:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 515183737}
+        m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
+        m_MethodName: Disable
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+      - m_Target: {fileID: 330585548}
+        m_TargetAssemblyTypeName: CameraController, Assembly-CSharp
+        m_MethodName: SwitchModes
+        m_Mode: 6
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &345147692
 MonoBehaviour:
   m_ObjectHideFlags: 0
