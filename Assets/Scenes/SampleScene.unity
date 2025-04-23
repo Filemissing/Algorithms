@@ -351,9 +351,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d68ad47f4c0f9c44fabcd9bfaa31528c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  seed: 5
-  size: {x: 50, y: 50}
-  maxRoomSize: {x: 10, y: 10}
+  seed: 1
+  size: {x: 500, y: 500}
+  maxRoomSize: {x: 15, y: 15}
   OnGenerationDone:
     m_PersistentCalls:
       m_Calls:
@@ -382,9 +382,9 @@ MonoBehaviour:
           m_BoolArgument: 1
         m_CallState: 2
   generatedRooms: []
-  maxSplitOffset: 0.25
+  maxSplitOffset: 0.75
   removePercentage: 50
-  useDFS: 0
+  useDFS: 1
   doorArea: 4
   hallwayChance: 0.3
   doors: []
@@ -404,11 +404,12 @@ MonoBehaviour:
   - {fileID: 4067463207887292001, guid: 7cb2b8d33bce5e54ea523a2d92599a8b, type: 3}
   useNavMesh: 0
   navmesh: {fileID: 345147692}
-  doAnimation: 1
+  doAnimation: 0
   waitTime: 0
   cursor: {fileID: 103741541}
+  showRooms: 0
+  showGraph: 0
   showNavigationGraph: 0
-  showRooms: 1
   onRedraw:
     m_PersistentCalls:
       m_Calls:

@@ -96,8 +96,6 @@ public class DungeonGenerator : MonoBehaviour
 
         yield return StartCoroutine(CreateRooms());
 
-        yield return StartCoroutine(GenerateGraph());
-
         yield return StartCoroutine(RemoveRooms());
 
         yield return StartCoroutine(RemoveCyclicPaths());
@@ -115,45 +113,64 @@ public class DungeonGenerator : MonoBehaviour
     void Initilize()
     {
         rng = new Random(Convert.ToUInt32(seed));
-
-        RectInt startRoom = new RectInt(0, 0, size.x, size.y);
-        roomsToCheck.Add(startRoom);
     }
 
     List<RectInt> roomsToCheck = new List<RectInt>();
     IEnumerator CreateRooms()
     {
+        RectInt startRoom = new RectInt(0, 0, size.x, size.y);
+        roomsToCheck.Add(startRoom);
+        graph.AddNode(startRoom);
+
         while (roomsToCheck.Count > 0)
         {
             List<RectInt> newRooms = new List<RectInt>();
+
             foreach (RectInt room in roomsToCheck)
             {
-                RectInt[] createdRooms = new RectInt[0];
+                (RectInt, RectInt[])[] createdRooms = new (RectInt, RectInt[])[0];
+
                 if (room.width > maxRoomSize.x && room.height > maxRoomSize.y) // both dimensions are too big - choose a random one
                 {
                     bool splitHorizontal = Mathf.Round(rng.NextFloat()) == 1;
 
-                    if (splitHorizontal) createdRooms = SplitHorizontally(room);
-                    else createdRooms = SplitVertically(room);
+                    if (splitHorizontal) createdRooms = SplitHorizontally(room, graph.GetNeighbors(room).ToArray());
+                    else createdRooms = SplitVertically(room, graph.GetNeighbors(room).ToArray());
+
+                    graph.RemoveNode(room);
                 }
                 else if (room.width > maxRoomSize.x) // width is too big
                 {
-                    createdRooms = SplitVertically(room);
+                    createdRooms = SplitVertically(room, graph.GetNeighbors(room).ToArray());
+
+                    graph.RemoveNode(room);
                 }
                 else if (room.height > maxRoomSize.y) // height is too big
                 {
-                    createdRooms = SplitHorizontally(room);
+                    createdRooms = SplitHorizontally(room, graph.GetNeighbors(room).ToArray());
+
+                    graph.RemoveNode(room);
                 }
                 else // room is finished - move to generatedRooms
                 {
                     generatedRooms.Add(room);
                 }
 
-                newRooms.AddRange(createdRooms);
+                foreach((RectInt, RectInt[]) newRoom in createdRooms)
+                {
+                    newRooms.Add(newRoom.Item1);
 
-                foreach (RectInt room2 in roomsToCheck) { AlgorithmsUtils.DebugRectInt(room2, Color.yellow, waitTime); }
+                    // add the node to the graph
+                    graph.AddNode(newRoom.Item1);
+                    foreach (RectInt adjacentRoom in newRoom.Item2) graph.AddEdge(newRoom.Item1, adjacentRoom);
+                }
 
-                foreach (RectInt createdRoom in newRooms) { AlgorithmsUtils.DebugRectInt(createdRoom, Color.cyan, waitTime); }
+                if (showRooms)
+                {
+                    foreach (RectInt room2 in roomsToCheck) { AlgorithmsUtils.DebugRectInt(room2, Color.yellow, waitTime); }
+
+                    foreach (RectInt createdRoom in newRooms) { AlgorithmsUtils.DebugRectInt(createdRoom, Color.cyan, waitTime); }
+                }
 
                 if(doAnimation) yield return new WaitForSeconds(waitTime);
             }
@@ -162,35 +179,80 @@ public class DungeonGenerator : MonoBehaviour
 
         generationFinished = true;
     }
-    RectInt[] SplitVertically(RectInt room)
+    (RectInt, RectInt[])[] SplitVertically(RectInt room, RectInt[] adjacentRooms)
     {
-        RectInt[] newRooms = new RectInt[2];
+        (RectInt, RectInt[])[] newRooms = new (RectInt, RectInt[])[2];
 
         float splitRatio = 2 + rng.NextFloat(-maxSplitOffset, maxSplitOffset);
 
         RectInt newRoom1 = new RectInt(room.x, room.y, Mathf.RoundToInt((float)(room.width / splitRatio)), room.height);
         RectInt newRoom2 = new RectInt(room.x + newRoom1.width - 1, room.y, room.width - newRoom1.width + 1, room.height);
 
-        newRooms[0] = newRoom1;
-        newRooms[1] = newRoom2;
+        List<RectInt> room1Connections = new();
+        room1Connections.Add(newRoom2);
+        foreach (RectInt adjacentRoom in adjacentRooms)
+        {
+            RectInt intersection = AlgorithmsUtils.Intersect(newRoom1, adjacentRoom);
+            if (intersection.width * intersection.height >= doorArea)
+            {
+                room1Connections.Add(adjacentRoom);
+            }
+        }
+
+        List<RectInt> room2Connections = new();
+        room2Connections.Add(newRoom1);
+        foreach (RectInt adjacentRoom in adjacentRooms)
+        {
+            RectInt intersection = AlgorithmsUtils.Intersect(newRoom2, adjacentRoom);
+            if (intersection.width * intersection.height >= doorArea)
+            {
+                room2Connections.Add(adjacentRoom);
+            }
+        }
+
+        newRooms[0] = (newRoom1, room1Connections.ToArray());
+        newRooms[1] = (newRoom2, room2Connections.ToArray());
 
         return newRooms;
     }
-    RectInt[] SplitHorizontally(RectInt room)
+    (RectInt, RectInt[])[] SplitHorizontally(RectInt room, RectInt[] adjacentRooms)
     {
-        RectInt[] newRooms = new RectInt[2];
+        (RectInt, RectInt[])[] newRooms = new (RectInt, RectInt[])[2];
 
         float splitRatio = 2 + rng.NextFloat(-maxSplitOffset, maxSplitOffset);
 
         RectInt newRoom1 = new RectInt(room.x, room.y, room.width, Mathf.RoundToInt((float)(room.height / splitRatio)));
         RectInt newRoom2 = new RectInt(room.x, room.y + newRoom1.height - 1, room.width, room.height - newRoom1.height + 1);
+        
+        List<RectInt> room1Connections = new();
+        room1Connections.Add(newRoom2);
+        foreach (RectInt adjacentRoom in adjacentRooms)
+        {
+            RectInt intersection = AlgorithmsUtils.Intersect(newRoom1, adjacentRoom);
+            if (intersection.width * intersection.height >= doorArea)
+            {
+                room1Connections.Add(adjacentRoom);
+            }
+        }
 
-        newRooms[0] = newRoom1;
-        newRooms[1] = newRoom2;
+        List<RectInt> room2Connections = new();
+        room2Connections.Add(newRoom1);
+        foreach (RectInt adjacentRoom in adjacentRooms)
+        {
+            RectInt intersection = AlgorithmsUtils.Intersect(newRoom2, adjacentRoom);
+            if (intersection.width * intersection.height >= doorArea)
+            {
+                room2Connections.Add(adjacentRoom);
+            }
+        }
+
+        newRooms[0] = (newRoom1, room1Connections.ToArray());
+        newRooms[1] = (newRoom2, room2Connections.ToArray());
 
         return newRooms;
     }
 
+    // deprecated, now included in room creation
     IEnumerator GenerateGraph()
     {
         foreach(RectInt room1 in generatedRooms)
@@ -287,11 +349,11 @@ public class DungeonGenerator : MonoBehaviour
                         discovered.Add(connectedNode);
                     }
 
-                    DrawGraph(newGraph, waitTime);
+                    if (showGraph) DrawGraph(newGraph, waitTime);
                     if (doAnimation) yield return new WaitForSeconds(waitTime);
                 }
 
-                DrawGraph(newGraph, waitTime);
+                if (showGraph) DrawGraph(newGraph, waitTime);
                 if (doAnimation) yield return new WaitForSeconds(waitTime);
             }
         }
@@ -709,15 +771,19 @@ public class DungeonGenerator : MonoBehaviour
     [HorizontalLine]
     [Header("Debugging")]
     public Transform cursor;
-    public bool showNavigationGraph;
     public bool showRooms;
+    public bool showGraph;
+    public bool showNavigationGraph;
     private void Update()
     {
         ToggleBools();
 
         if (showRooms)
+            if (!generationFinished)
+                DrawRooms();
+
+        if (showGraph)
         {
-            DrawRooms();
             if (!removalFinished || removedCyclicPaths)
                 DrawGraph(graph, Time.deltaTime);
             DrawDoors(); 
@@ -742,14 +808,13 @@ public class DungeonGenerator : MonoBehaviour
     }
     void ToggleBools()
     {
-        if (Input.GetKeyDown(KeyCode.R)) showRooms = !showRooms;
+        if (Input.GetKeyDown(KeyCode.R)) showGraph = !showGraph;
         if (Input.GetKeyDown(KeyCode.N)) showNavigationGraph = !showNavigationGraph;
         if (Input.GetKeyDown(KeyCode.A)) doAnimation = !doAnimation;
     }
     void DrawRooms()
     {
-        if (!graphFinished)
-            foreach (RectInt room in generatedRooms) { AlgorithmsUtils.DebugRectInt(room, Color.green, Time.deltaTime); }
+        foreach (RectInt room in generatedRooms) { AlgorithmsUtils.DebugRectInt(room, Color.green, Time.deltaTime); }
     }
     void DrawGraph(Graph<RectInt> graph, float time)
     {
