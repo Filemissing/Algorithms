@@ -383,11 +383,12 @@ MonoBehaviour:
         m_CallState: 2
   generatedRooms: []
   maxSplitOffset: 0.75
-  removePercentage: 50
+  removePercentage: 10
   useDFS: 1
   doorArea: 4
   hallwayChance: 0.3
   doors: []
+  useRecursiveFloodFill: 0
   floor: {fileID: 4074472281868185338, guid: 3de645c6de2d2c342b987997d9dbe854, type: 3}
   crossWall: {fileID: 3495114884034316318, guid: d31ff350ff62da24f9af7106a884a8ef, type: 3}
   tWall: {fileID: 6174286636064865313, guid: 8c273a089676b2b4f9caec6c8fd4ce8f, type: 3}
@@ -402,7 +403,7 @@ MonoBehaviour:
   - {fileID: 1004340080073827064, guid: 587d27135ff4ca84d98cb64d6cea4790, type: 3}
   - {fileID: 8247138881074269873, guid: 33be8aba929d95048b755deeafb311e2, type: 3}
   - {fileID: 4067463207887292001, guid: 7cb2b8d33bce5e54ea523a2d92599a8b, type: 3}
-  useNavMesh: 0
+  useNavMesh: 1
   navmesh: {fileID: 345147692}
   doAnimation: 0
   waitTime: 0
@@ -410,6 +411,7 @@ MonoBehaviour:
   showRooms: 0
   showGraph: 0
   showNavigationGraph: 0
+  keyPressContinue: 0
   onRedraw:
     m_PersistentCalls:
       m_Calls:

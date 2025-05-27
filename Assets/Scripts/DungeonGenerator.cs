@@ -31,7 +31,6 @@ public class DungeonGenerator : MonoBehaviour
 
     [Header("Graph")]
     public Graph<RectInt> graph = new();
-    bool graphFinished = false;
 
     [Header("Room Removal")]
     public float removePercentage;
@@ -48,6 +47,7 @@ public class DungeonGenerator : MonoBehaviour
     public List<Door> doors = new();
 
     [Header("Assets")]
+    public bool useRecursiveFloodFill;
     public GameObject floor;
     public GameObject crossWall;
     public GameObject tWall;
@@ -96,15 +96,25 @@ public class DungeonGenerator : MonoBehaviour
 
         yield return StartCoroutine(CreateRooms());
 
+        if (keyPressContinue) yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.Space));
+
         yield return StartCoroutine(RemoveRooms());
+
+        if (keyPressContinue) yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.Space));
 
         yield return StartCoroutine(RemoveCyclicPaths());
 
+        if (keyPressContinue) yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.Space));
+
         yield return StartCoroutine(SpawnDoors());
+
+        if (keyPressContinue) yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.Space));
 
         yield return StartCoroutine(SpawnAssets());
 
-        if(useNavMesh) navmesh.BuildNavMesh();
+        if (keyPressContinue) yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.Space));
+
+        if (useNavMesh) navmesh.BuildNavMesh();
         else yield return StartCoroutine(CreateNavigationGraph());
 
         OnGenerationDone.Invoke();
@@ -252,8 +262,7 @@ public class DungeonGenerator : MonoBehaviour
         return newRooms;
     }
 
-    // deprecated, now included in room creation
-    IEnumerator GenerateGraph()
+    [Obsolete("deprecated, now included in room creation")] IEnumerator GenerateGraph()
     {
         foreach(RectInt room1 in generatedRooms)
         {
@@ -276,8 +285,6 @@ public class DungeonGenerator : MonoBehaviour
             }
             if (doAnimation) yield return new WaitForSeconds(waitTime);
         }
-
-        graphFinished = true;
     }
 
     IEnumerator RemoveRooms()
@@ -443,15 +450,17 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
+    Dictionary<Vector2Int, Transform> floorMap = new();
+    Dictionary<Vector2Int, Transform> wallMap = new();
+    Dictionary<Vector2Int, Transform> decorationMap = new();
+
+    List<Vector2Int> spawnedFloors = new();
     IEnumerator SpawnAssets()
     {
         // create parent
         assetParent = new GameObject("Dungeon");
 
         // Map floors and walls
-        Dictionary<Vector2Int, Transform> floorMap = new();
-        Dictionary<Vector2Int, Transform> wallMap = new();
-        Dictionary<Vector2Int, Transform> decorationMap = new();
         int roomNumber = 0;
         foreach (RectInt room in graph.GetNodes())
         {
@@ -531,39 +540,46 @@ public class DungeonGenerator : MonoBehaviour
         }
 
         // spawn floors
-        Queue<Vector2Int> queue = new();
-        HashSet<Vector2Int> discovered = new();
-
-        Vector2Int startPosition = Vector2Int.RoundToInt(graph.GetNodes()[0].center);
-        queue.Enqueue(startPosition);
-        discovered.Add(startPosition);
-
-        // spawn floors with flood fill
-        while (queue.Count > 0)
+        if (useRecursiveFloodFill)
         {
-            Vector2Int position = queue.Dequeue();
+            FloodFill(Vector2Int.RoundToInt(graph.GetNodes()[0].center)); 
+        }
+        else // non recursive floodfill
+        {
+            Queue<Vector2Int> queue = new();
+            HashSet<Vector2Int> discovered = new();
 
-            Instantiate(floor, new Vector3(position.x + .5f, 0, position.y + .5f), Quaternion.identity, floorMap[position]);
+            Vector2Int startPosition = Vector2Int.RoundToInt(graph.GetNodes()[0].center);
+            queue.Enqueue(startPosition);
+            discovered.Add(startPosition);
 
-            List<Vector2Int> neighbours = new();
-
-            foreach (Vector2Int direction in orthogonalDirections)
+            // spawn floors with flood fill
+            while (queue.Count > 0)
             {
-                Vector2Int newPos = position + direction;
+                Vector2Int position = queue.Dequeue();
 
-                if (floorMap.ContainsKey(newPos)) neighbours.Add(newPos);
-            }
+                Instantiate(floor, new Vector3(position.x + .5f, 0, position.y + .5f), Quaternion.identity, floorMap[position]);
 
-            foreach (Vector2Int neighBouringPosition in neighbours)
-            {
-                if (!discovered.Contains(neighBouringPosition))
+                List<Vector2Int> neighbours = new();
+
+                foreach (Vector2Int direction in orthogonalDirections)
                 {
-                    queue.Enqueue(neighBouringPosition);
-                    discovered.Add(neighBouringPosition);
-                }
-            }
+                    Vector2Int newPos = position + direction;
 
-            if (doAnimation) yield return new WaitForSeconds(waitTime);
+                    if (floorMap.ContainsKey(newPos)) neighbours.Add(newPos);
+                }
+
+                foreach (Vector2Int neighBouringPosition in neighbours)
+                {
+                    if (!discovered.Contains(neighBouringPosition))
+                    {
+                        queue.Enqueue(neighBouringPosition);
+                        discovered.Add(neighBouringPosition);
+                    }
+                }
+
+                if (doAnimation) yield return new WaitForSeconds(waitTime);
+            }
         }
 
         // spawn walls
@@ -681,6 +697,22 @@ public class DungeonGenerator : MonoBehaviour
             if (doAnimation) yield return new WaitForSeconds(waitTime);
         }
     }
+    void FloodFill(Vector2Int position)
+    {
+        // spawn the asset
+        Instantiate(floor, new Vector3(position.x + .5f, 0, position.y + .5f), Quaternion.identity, floorMap[position]);
+        spawnedFloors.Add(position);
+
+        foreach (Vector2Int direction in orthogonalDirections)
+        {
+            Vector2Int neighbourPos = position + direction;
+
+            if(floorMap.ContainsKey(neighbourPos) && !spawnedFloors.Contains(neighbourPos))
+            {
+                FloodFill(neighbourPos);
+            }
+        }
+    }
 
     IEnumerator CreateNavigationGraph()
     {
@@ -774,6 +806,7 @@ public class DungeonGenerator : MonoBehaviour
     public bool showRooms;
     public bool showGraph;
     public bool showNavigationGraph;
+    public bool keyPressContinue;
     private void Update()
     {
         ToggleBools();
@@ -808,9 +841,11 @@ public class DungeonGenerator : MonoBehaviour
     }
     void ToggleBools()
     {
-        if (Input.GetKeyDown(KeyCode.R)) showGraph = !showGraph;
+        if (Input.GetKeyDown(KeyCode.R)) showRooms = !showRooms; 
+        if (Input.GetKeyDown(KeyCode.G)) showGraph = !showGraph;
         if (Input.GetKeyDown(KeyCode.N)) showNavigationGraph = !showNavigationGraph;
         if (Input.GetKeyDown(KeyCode.A)) doAnimation = !doAnimation;
+        if (Input.GetKeyDown(KeyCode.K)) keyPressContinue = !keyPressContinue;
     }
     void DrawRooms()
     {
@@ -844,7 +879,6 @@ public class DungeonGenerator : MonoBehaviour
         generatedRooms.Clear();
         generationFinished = false;
         graph.Clear();
-        graphFinished = false;
         removalFinished = false;
         removedCyclicPaths = false;
         doors.Clear();
