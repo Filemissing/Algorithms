@@ -812,13 +812,11 @@ public class DungeonGenerator : MonoBehaviour
         ToggleBools();
 
         if (showRooms)
-            if (!generationFinished)
-                DrawRooms();
+            DrawRooms();
 
         if (showGraph)
         {
-            if (!removalFinished || removedCyclicPaths)
-                DrawGraph(graph, Time.deltaTime);
+            DrawGraph(graph, Time.deltaTime);
             DrawDoors(); 
         }
 

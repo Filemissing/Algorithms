@@ -352,8 +352,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   seed: 1
-  size: {x: 500, y: 500}
-  maxRoomSize: {x: 15, y: 15}
+  size: {x: 50, y: 50}
+  maxRoomSize: {x: 10, y: 10}
   OnGenerationDone:
     m_PersistentCalls:
       m_Calls:
@@ -403,14 +403,14 @@ MonoBehaviour:
   - {fileID: 1004340080073827064, guid: 587d27135ff4ca84d98cb64d6cea4790, type: 3}
   - {fileID: 8247138881074269873, guid: 33be8aba929d95048b755deeafb311e2, type: 3}
   - {fileID: 4067463207887292001, guid: 7cb2b8d33bce5e54ea523a2d92599a8b, type: 3}
-  useNavMesh: 1
+  useNavMesh: 0
   navmesh: {fileID: 345147692}
-  doAnimation: 0
+  doAnimation: 1
   waitTime: 0
   cursor: {fileID: 103741541}
-  showRooms: 0
-  showGraph: 0
-  showNavigationGraph: 0
+  showRooms: 1
+  showGraph: 1
+  showNavigationGraph: 1
   keyPressContinue: 0
   onRedraw:
     m_PersistentCalls:
