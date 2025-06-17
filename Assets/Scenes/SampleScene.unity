@@ -412,6 +412,7 @@ MonoBehaviour:
   showGraph: 1
   showNavigationGraph: 1
   keyPressContinue: 0
+  showDoors: 1
   onRedraw:
     m_PersistentCalls:
       m_Calls:

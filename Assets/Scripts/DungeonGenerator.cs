@@ -126,6 +126,7 @@ public class DungeonGenerator : MonoBehaviour
     }
 
     List<RectInt> roomsToCheck = new List<RectInt>();
+    // Complexity O(n) extreme cases O(n^2) because of intgrated graph generation where n is the area of the entire dungeon / min room size?
     IEnumerator CreateRooms()
     {
         RectInt startRoom = new RectInt(0, 0, size.x, size.y);
@@ -262,6 +263,7 @@ public class DungeonGenerator : MonoBehaviour
         return newRooms;
     }
 
+    // Complexity O(n^2) where n is the number of rooms
     [Obsolete("deprecated, now included in room creation")] IEnumerator GenerateGraph()
     {
         foreach(RectInt room1 in generatedRooms)
@@ -287,6 +289,7 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
+    // Complexity O(n) where n is the number of rooms
     IEnumerator RemoveRooms()
     {
         int AmountToRemove = Mathf.RoundToInt(generatedRooms.Count * (removePercentage / 100f));
@@ -325,6 +328,7 @@ public class DungeonGenerator : MonoBehaviour
         removalFinished = true;
     }
 
+    // Complexity O(n) where n is the number of vertecis and edges of the graph
     IEnumerator RemoveCyclicPaths()
     {
         Graph<RectInt> newGraph = new Graph<RectInt>();
@@ -404,6 +408,7 @@ public class DungeonGenerator : MonoBehaviour
         removedCyclicPaths = true;
     }
 
+    // Complexity O(n) where n is the number of edges in the graph, note that this changed after removing the cyclic paths
     IEnumerator SpawnDoors()
     {
         foreach(RectInt node in graph.GetNodes())
@@ -450,6 +455,7 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
+    // Complexity O(n) where n is the area of the entire dungeon
     Dictionary<Vector2Int, Transform> floorMap = new();
     Dictionary<Vector2Int, Transform> wallMap = new();
     Dictionary<Vector2Int, Transform> decorationMap = new();
@@ -714,6 +720,7 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
 
+    // Complexity O(n) where n is the area of the entire dungeon
     IEnumerator CreateNavigationGraph()
     {
         // map all detailed positions
@@ -807,6 +814,7 @@ public class DungeonGenerator : MonoBehaviour
     public bool showGraph;
     public bool showNavigationGraph;
     public bool keyPressContinue;
+    public bool showDoors;
     private void Update()
     {
         ToggleBools();
@@ -815,10 +823,10 @@ public class DungeonGenerator : MonoBehaviour
             DrawRooms();
 
         if (showGraph)
-        {
             DrawGraph(graph, Time.deltaTime);
-            DrawDoors(); 
-        }
+
+        if (showDoors)
+            DrawDoors();
 
         if (Input.GetMouseButtonDown(1))
         {
@@ -844,6 +852,7 @@ public class DungeonGenerator : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.N)) showNavigationGraph = !showNavigationGraph;
         if (Input.GetKeyDown(KeyCode.A)) doAnimation = !doAnimation;
         if (Input.GetKeyDown(KeyCode.K)) keyPressContinue = !keyPressContinue;
+        if (Input.GetKeyDown(KeyCode.D)) showDoors = !showDoors;
     }
     void DrawRooms()
     {
@@ -853,7 +862,6 @@ public class DungeonGenerator : MonoBehaviour
     {
         foreach(RectInt node in graph.GetNodes()) 
         {
-            AlgorithmsUtils.DebugRectInt(node, Color.green, time);
             DebugExtension.DebugCircle(GetMiddle(node), Color.magenta, Mathf.Min(node.width, node.height) / 4, time); 
             foreach(RectInt connection in graph.GetNeighbors(node))
             {
